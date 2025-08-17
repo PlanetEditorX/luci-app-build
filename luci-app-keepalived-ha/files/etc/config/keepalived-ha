@@ -1,7 +1,12 @@
-config general
+config general 'general'
     option role 'main'
     option vip '192.168.1.5'
-    option interface 'eth0'
+    option interface 'br-lan'
+    option check_method 'ping'
+    option vrid '51'
+    option advanced_mode '0'
+    option preempt 'true'
+    option control_openclash '1'
 
 config main
     option peer_ip '192.168.1.3'
