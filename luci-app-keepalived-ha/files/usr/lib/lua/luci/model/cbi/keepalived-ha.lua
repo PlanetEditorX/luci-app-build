@@ -80,56 +80,59 @@ control_openclash = s:option(Flag, "control_openclash", translate("自动控制O
 control_openclash.default = "1"
 control_openclash.rmempty = false
 
--- 主路由配置段（NamedSection + depends 到每个选项）
-main = m:section(NamedSection, "main", "main", translate("主路由设置"),
-    translate("仅当角色为“主路由”时生效的配置参数"))
-main.anonymous = true
+-- 获取当前角色值（页面提交值或默认值）
+local current_role = role:formvalue() or role.default
 
-peer_ip = main:option(Value, "peer_ip", translate("备路由IP地址"))
-peer_ip.datatype = "ip4addr"
-peer_ip.default = "192.168.1.3"
-peer_ip.rmempty = false
-peer_ip:depends("role", "main")
+-- 主路由配置段（仅在角色为主路由时显示）
+if current_role == "main" then
+    main = m:section(NamedSection, "main", "main", translate("主路由设置"),
+        translate("仅当角色为“主路由”时生效的配置参数"))
+    main.anonymous = true
 
-priority_main = main:option(Value, "priority", translate("VRRP优先级"),
-    translate("主路由优先级应低于备路由（建议50-90）"))
-priority_main.datatype = "uinteger"
-priority_main.default = "50"
-priority_main.rmempty = false
-priority_main:depends("role", "main")
+    peer_ip = main:option(Value, "peer_ip", translate("备路由IP地址"))
+    peer_ip.datatype = "ip4addr"
+    peer_ip.default = "192.168.1.3"
+    peer_ip.rmempty = false
 
-fail_threshold = main:option(Value, "fail_threshold", translate("故障转移阈值"))
-fail_threshold.datatype = "range(1,10)"
-fail_threshold.default = "3"
-fail_threshold:depends("role", "main")
+    priority_main = main:option(Value, "priority", translate("VRRP优先级"),
+        translate("主路由优先级应低于备路由（建议50-90）"))
+    priority_main.datatype = "uinteger"
+    priority_main.default = "50"
+    priority_main.rmempty = false
 
-recover_threshold = main:option(Value, "recover_threshold", translate("恢复阈值"))
-recover_threshold.datatype = "range(1,10)"
-recover_threshold.default = "2"
-recover_threshold:depends("role", "main")
+    fail_threshold = main:option(Value, "fail_threshold", translate("故障转移阈值"))
+    fail_threshold.datatype = "range(1,10)"
+    fail_threshold.default = "3"
+    fail_threshold.rmempty = false
 
-check_interval = main:option(Value, "check_interval", translate("检查间隔（秒）"))
-check_interval.datatype = "range(2,60)"
-check_interval.default = "5"
-check_interval:depends("role", "main")
+    recover_threshold = main:option(Value, "recover_threshold", translate("恢复阈值"))
+    recover_threshold.datatype = "range(1,10)"
+    recover_threshold.default = "2"
+    recover_threshold.rmempty = false
 
--- 备路由配置段（NamedSection + depends 到每个选项）
-peer = m:section(NamedSection, "peer", "peer", translate("备路由设置"),
-    translate("仅当角色为“备路由”时生效的配置参数"))
-peer.anonymous = true
+    check_interval = main:option(Value, "check_interval", translate("检查间隔（秒）"))
+    check_interval.datatype = "range(2,60)"
+    check_interval.default = "5"
+    check_interval.rmempty = false
+end
 
-main_ip = peer:option(Value, "main_ip", translate("主路由IP地址"))
-main_ip.datatype = "ip4addr"
-main_ip.default = "192.168.1.2"
-main_ip.rmempty = false
-main_ip:depends("role", "peer")
+-- 备路由配置段（仅在角色为备路由时显示）
+if current_role == "peer" then
+    peer = m:section(NamedSection, "peer", "peer", translate("备路由设置"),
+        translate("仅当角色为“备路由”时生效的配置参数"))
+    peer.anonymous = true
 
-priority_peer = peer:option(Value, "priority", translate("VRRP优先级"),
-    translate("备路由优先级应高于主路由（建议100-150）"))
-priority_peer.datatype = "uinteger"
-priority_peer.default = "100"
-priority_peer.rmempty = false
-priority_peer:depends("role", "peer")
+    main_ip = peer:option(Value, "main_ip", translate("主路由IP地址"))
+    main_ip.datatype = "ip4addr"
+    main_ip.default = "192.168.1.2"
+    main_ip.rmempty = false
+
+    priority_peer = peer:option(Value, "priority", translate("VRRP优先级"),
+        translate("备路由优先级应高于主路由（建议100-150）"))
+    priority_peer.datatype = "uinteger"
+    priority_peer.default = "100"
+    priority_peer.rmempty = false
+end
 
 -- 提交后重启服务
 function m.on_after_commit(self)
