@@ -84,7 +84,6 @@ control_openclash.rmempty = false
 main = m:section(NamedSection, "main", "main", translate("主路由设置"),
     translate("仅当角色为“主路由”时生效的配置参数"))
 main.anonymous = true
-main:depends("role", "main")  -- 新增：仅当角色为主路由时显示
 
 peer_ip = main:option(Value, "peer_ip", translate("备路由IP地址"))
 peer_ip.datatype = "ip4addr"
@@ -118,7 +117,6 @@ check_interval:depends("role", "main")
 peer = m:section(NamedSection, "peer", "peer", translate("备路由设置"),
     translate("仅当角色为“备路由”时生效的配置参数"))
 peer.anonymous = true
-peer:depends("role", "peer")  -- 新增：仅当角色为备路由时显示
 
 main_ip = peer:option(Value, "main_ip", translate("主路由IP地址"))
 main_ip.datatype = "ip4addr"
