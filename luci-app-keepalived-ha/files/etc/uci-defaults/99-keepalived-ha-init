@@ -1,7 +1,7 @@
 #!/bin/sh
 CFG=keepalived-ha
 
-# 如果已存在则跳过
+# 初始化基础段
 [ -n "$(uci -q get $CFG.general)" ] || uci set $CFG.general=general
 uci set $CFG.general.role='main'
 uci set $CFG.general.vip='192.168.1.5'
@@ -12,6 +12,7 @@ uci set $CFG.general.advanced_mode='0'
 uci set $CFG.general.preempt='true'
 uci set $CFG.general.control_openclash='1'
 
+# 主路由段
 [ -n "$(uci -q get $CFG.main)" ] || uci set $CFG.main=main
 uci set $CFG.main.peer_ip='192.168.1.3'
 uci set $CFG.main.priority='50'
@@ -19,6 +20,7 @@ uci set $CFG.main.fail_threshold='3'
 uci set $CFG.main.recover_threshold='2'
 uci set $CFG.main.check_interval='5'
 
+# 备路由段
 [ -n "$(uci -q get $CFG.peer)" ] || uci set $CFG.peer=peer
 uci set $CFG.peer.main_ip='192.168.1.2'
 uci set $CFG.peer.priority='100'

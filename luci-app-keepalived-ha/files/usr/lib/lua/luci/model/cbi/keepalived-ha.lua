@@ -1,4 +1,4 @@
-local m, s
+local m, s, main, peer
 local sys = require "luci.sys"
 
 m = Map("keepalived-ha",
@@ -18,7 +18,7 @@ role.default = "main"
 role.rmempty = false
 role.description = translate("主路由正常情况下持有VIP，备路由在主路由故障时接管")
 
--- 公共配置（省略，与原代码一致）
+-- 公共配置
 local vip = s:option(Value, "vip", translate("虚拟IP（VIP）"))
 vip.datatype = "ip4addr"
 vip.default = "192.168.1.5"
@@ -73,59 +73,51 @@ local control_openclash = s:option(Flag, "control_openclash", translate("自动�
 control_openclash.default = "1"
 control_openclash.rmempty = false
 
--- 获取当前角色（关键：用局部变量）
-local current_role = role:formvalue() or role.default
+-- 主路由配置段（始终创建，依赖 role 控制显隐）
+main = m:section(NamedSection, "main", "main", translate("主路由设置"),
+    translate("仅当角色为“主路由”时生效的配置参数"))
+main.anonymous = true
+main:depends("role", "main")
 
--- 主路由配置段（用局部变量，限制作用域）
-if current_role == "main" then
-    local main = m:section(NamedSection, "main", "main", translate("主路由设置"),
-        translate("仅当角色为“主路由”时生效的配置参数"))
-    main.anonymous = true
+local peer_ip = main:option(Value, "peer_ip", translate("备路由IP地址"))
+peer_ip.datatype = "ip4addr"
+peer_ip.default = "192.168.1.3"
+peer_ip.rmempty = false
 
-    local peer_ip = main:option(Value, "peer_ip", translate("备路由IP地址"))
-    peer_ip.datatype = "ip4addr"
-    peer_ip.default = "192.168.1.3"
-    peer_ip.rmempty = false
+local priority_main = main:option(Value, "priority", translate("VRRP优先级"),
+    translate("主路由优先级应低于备路由（建议50-90）"))
+priority_main.datatype = "uinteger"
+priority_main.default = "50"
+priority_main.rmempty = false
 
-    local priority_main = main:option(Value, "priority", translate("VRRP优先级"),
-        translate("主路由优先级应低于备路由（建议50-90）"))
-    priority_main.datatype = "uinteger"
-    priority_main.default = "50"
-    priority_main.rmempty = false
+local fail_threshold = main:option(Value, "fail_threshold", translate("故障转移阈值"))
+fail_threshold.datatype = "range(1,10)"
+fail_threshold.default = "3"
 
-    local fail_threshold = main:option(Value, "fail_threshold", translate("故障转移阈值"))
-    fail_threshold.datatype = "range(1,10)"
-    fail_threshold.default = "3"
-    fail_threshold.rmempty = false
+local recover_threshold = main:option(Value, "recover_threshold", translate("恢复阈值"))
+recover_threshold.datatype = "range(1,10)"
+recover_threshold.default = "2"
 
-    local recover_threshold = main:option(Value, "recover_threshold", translate("恢复阈值"))
-    recover_threshold.datatype = "range(1,10)"
-    recover_threshold.default = "2"
-    recover_threshold.rmempty = false
+local check_interval = main:option(Value, "check_interval", translate("检查间隔（秒）"))
+check_interval.datatype = "range(2,60)"
+check_interval.default = "5"
 
-    local check_interval = main:option(Value, "check_interval", translate("检查间隔（秒）"))
-    check_interval.datatype = "range(2,60)"
-    check_interval.default = "5"
-    check_interval.rmempty = false
-end
+-- 备路由配置段（始终创建，依赖 role 控制显隐）
+peer = m:section(NamedSection, "peer", "peer", translate("备路由设置"),
+    translate("仅当角色为“备路由”时生效的配置参数"))
+peer.anonymous = true
+peer:depends("role", "peer")
 
--- 备路由配置段（用局部变量，限制作用域）
-if current_role == "peer" then
-    local peer = m:section(NamedSection, "peer", "peer", translate("备路由设置"),
-        translate("仅当角色为“备路由”时生效的配置参数"))
-    peer.anonymous = true
+local main_ip = peer:option(Value, "main_ip", translate("主路由IP地址"))
+main_ip.datatype = "ip4addr"
+main_ip.default = "192.168.1.2"
+main_ip.rmempty = false
 
-    local main_ip = peer:option(Value, "main_ip", translate("主路由IP地址"))
-    main_ip.datatype = "ip4addr"
-    main_ip.default = "192.168.1.2"
-    main_ip.rmempty = false
-
-    local priority_peer = peer:option(Value, "priority", translate("VRRP优先级"),
-        translate("备路由优先级应高于主路由（建议100-150）"))
-    priority_peer.datatype = "uinteger"
-    priority_peer.default = "100"
-    priority_peer.rmempty = false
-end
+local priority_peer = peer:option(Value, "priority", translate("VRRP优先级"),
+    translate("备路由优先级应高于主路由（建议100-150）"))
+priority_peer.datatype = "uinteger"
+priority_peer.default = "100"
+priority_peer.rmempty = false
 
 -- 提交后重启服务
 function m.on_after_commit(self)
