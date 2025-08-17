@@ -78,9 +78,7 @@ local control_openclash = s:option(Flag, "control_openclash", translate("自动�
     translate("故障转移时自动启停OpenClash"))
 control_openclash.default = "1"
 
----
-## Main Router Configuration
-
+-- Main Router Configuration
 -- 主路由配置段
 main_section = m:section(SimpleSection, "main_settings", translate("主路由设置"))
 main_section.anonymous = true
@@ -116,9 +114,7 @@ check_interval_option.default = "5"
 check_interval_option.description = translate("健康检查的时间间隔（2-60秒）")
 check_interval_option:depends("role", "main")
 
----
-## Peer Router Configuration
-
+-- Peer Router Configuration
 -- 备路由配置段
 peer_section = m:section(SimpleSection, "peer_settings", translate("备路由设置"))
 peer_section.anonymous = true
