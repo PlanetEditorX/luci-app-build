@@ -1,0 +1,175 @@
+name: Luci App Hello（OpenWRT 24.10.2）
+
+on:
+  workflow_dispatch:
+  # push:
+  #   branches: [ main ]
+
+jobs:
+  build-luci-app:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: 1. 拉取 luci-app-build 仓库代码
+        uses: actions/checkout@v4
+
+      - name: 2. 安装编译依赖
+        run: |
+          sudo apt update -y || true
+          sudo apt install -y \
+            build-essential git wget tar zstd xz-utils \
+            python3 python3-dev python3-setuptools swig
+
+      - name: 3. 下载并解压 OpenWRT SDK（硬编码路径）
+        run: |
+          # 关键：直接使用 GitHub Runner 固定家目录 /home/runner，不依赖变量
+          RUNNER_HOME="/home/runner"
+          SDK_URL="https://downloads.openwrt.org/releases/24.10.2/targets/mediatek/filogic/openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+          SDK_TAR="openwrt-sdk-24.10.2.tar.zst"
+          SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
+          SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
+
+          # 创建目录并下载SDK
+          mkdir -p "$SDK_DIR" && cd "$SDK_DIR"
+          echo "🔍 当前SDK目录：$SDK_DIR"
+          if [ ! -f "$SDK_TAR" ]; then
+            wget "$SDK_URL" -O "$SDK_TAR" || { echo "❌ SDK下载失败"; exit 1; }
+          fi
+
+          # 解压SDK
+          if [ ! -d "$SDK_FOLDER" ]; then
+            zstd -d "$SDK_TAR" && tar -xf "${SDK_TAR%.zst}" || { echo "❌ SDK解压失败"; exit 1; }
+          fi
+          # 验证解压后的路径
+          if [ ! -d "$SDK_DIR/$SDK_FOLDER" ]; then
+            echo "❌ SDK解压后路径不存在：$SDK_DIR/$SDK_FOLDER"; exit 1;
+          fi
+          echo "✅ SDK解压完成，路径：$SDK_DIR/$SDK_FOLDER"
+
+      - name: 4. 初始化Feeds并创建自定义包（硬编码路径）
+        run: |
+          RUNNER_HOME="/home/runner"
+          PKG_NAME="luci-app-hello"
+          SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
+          SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
+          FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
+
+          # 验证路径并进入SDK目录（关键：提前确认路径存在）
+          echo "🔍 准备进入SDK路径：$FULL_SDK_PATH"
+          if [ ! -d "$FULL_SDK_PATH" ]; then
+            echo "❌ SDK路径不存在！当前目录下文件："; ls -l "$SDK_DIR"; exit 1;
+          fi
+          cd "$FULL_SDK_PATH" || { echo "❌ 进入SDK目录失败，路径：$FULL_SDK_PATH"; exit 1; }
+
+          # 初始化Feeds
+          > feeds.conf.default
+          echo 'src-git base https://github.com/openwrt/openwrt.git;openwrt-24.10' >> feeds.conf.default
+          echo 'src-git packages https://github.com/openwrt/packages.git;master' >> feeds.conf.default
+          echo 'src-git luci https://github.com/openwrt/luci.git;openwrt-24.10' >> feeds.conf.default
+          ./scripts/feeds update -a || { echo "❌ Feeds更新失败"; exit 1; }
+          ./scripts/feeds install -a || { echo "❌ Feeds安装失败"; exit 1; }
+
+          # 创建自定义包文件
+          PKG_BASE_DIR="package/$PKG_NAME"
+          CONTROLLER_DIR="$PKG_BASE_DIR/files/usr/lib/lua/luci/controller"
+          VIEW_DIR="$PKG_BASE_DIR/files/usr/lib/lua/luci/view/hello"
+          mkdir -p "$CONTROLLER_DIR" "$VIEW_DIR"
+
+          # 写入控制器
+          cat > "$CONTROLLER_DIR/hello.lua" << 'EOF'
+          module("luci.controller.hello", package.seeall)
+          function index()
+              entry({"admin", "system", "hello"}, template("hello/index"), "Hello World", 100)
+          end
+          EOF
+
+          # 写入模板
+          cat > "$VIEW_DIR/index.htm" << 'EOF'
+          <%+header%>
+          <div style="padding: 20px; font-family: sans-serif;">
+              <h2 style="color: #2c3e50;">Hello World!</h2>
+              <p style="color: #7f8c8d;">仓库：luci-app-build | OpenWRT 24.10.2</p>
+              <p style="color: #3498db;">当前时间：<%=os.date("%Y-%m-%d %H:%M:%S")%></p>
+              <p style="color: #27ae60;">运行设备：<%=luci.sys.hostname()%></p>
+          </div>
+          <%+footer%>
+          EOF
+
+          # 写入Makefile
+          cat > "$PKG_BASE_DIR/Makefile" << 'EOF'
+          include $(TOPDIR)/rules.mk
+          PKG_NAME:=luci-app-hello
+          PKG_VERSION:=1.0
+          PKG_RELEASE:=1
+          include $(INCLUDE_DIR)/package.mk
+          include $(TOPDIR)/feeds/luci/luci.mk
+
+          define Package/$(PKG_NAME)
+          	SECTION:=luci
+          	CATEGORY:=LuCI
+          	SUBMENU:=3. System
+          	TITLE:=LuCI Hello World
+          	DEPENDS:=+luci-base
+          	PKGARCH:=all
+          endef
+
+          define Package/$(PKG_NAME)/description
+          	Simple Hello World (from luci-app-build repo)
+          endef
+
+          define Build/Compile
+          endef
+
+          define Package/$(PKG_NAME)/install
+          	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
+          	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/hello
+          	$(CP) ./files/usr/lib/lua/luci/controller/hello.lua $(1)/usr/lib/lua/luci/controller/
+          	$(CP) ./files/usr/lib/lua/luci/view/hello/index.htm $(1)/usr/lib/lua/luci/view/hello/
+          endef
+
+          $(eval $(call BuildPackage,$(PKG_NAME)))
+          EOF
+
+      - name: 5. 编译IPK（硬编码路径）
+        run: |
+          RUNNER_HOME="/home/runner"
+          PKG_NAME="luci-app-hello"
+          SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
+          SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
+          OUTPUT_DIR="$RUNNER_HOME/luci-hello-ipk"
+          FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
+
+          # 进入SDK目录
+          cd "$FULL_SDK_PATH" || { echo "❌ 进入SDK目录失败"; exit 1; }
+
+          # 补全配置
+          if [ ! -f ".config" ]; then
+            make defconfig
+          fi
+          echo "CONFIG_PACKAGE_luci-base=y" >> .config
+          echo "CONFIG_PACKAGE_uhttpd=y" >> .config
+          echo "CONFIG_PACKAGE_lua=y" >> .config
+          echo "CONFIG_PACKAGE_libiwinfo=y" >> .config
+          echo "CONFIG_PACKAGE_$PKG_NAME=y" >> .config
+          make defconfig || { echo "❌ 配置生成失败"; exit 1; }
+
+          # 编译
+          make package/$PKG_NAME/clean V=s || { echo "⚠️  无旧产物可清理"; }
+          make package/$PKG_NAME/compile V=s -j1 || { echo "❌ 编译失败"; exit 1; }
+
+          # 复制IPK
+          mkdir -p "$OUTPUT_DIR"
+          ARCH_DIR=$(find "bin/packages/" -maxdepth 1 -type d ! -name "*.ipk" ! -name "packages" | head -n1)
+          IPK_PATH=$(find "$ARCH_DIR/" | grep "$PKG_NAME")
+          if [ -z "$IPK_PATH" ]; then
+            echo "❌ 未找到IPK文件"; exit 1;
+          fi
+          cp -f "$IPK_PATH" "$OUTPUT_DIR/"
+          echo "✅ 编译完成！IPK路径：$OUTPUT_DIR/$(basename $IPK_PATH)"
+
+      - name: 6. 上传IPK产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-hello-ipk-from-luci-app-build
+          # 硬编码产物路径，确保正确
+          path: /home/runner/luci-hello-ipk/luci-app-hello_*.ipk
+          retention-days: 30

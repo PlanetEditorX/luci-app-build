@@ -1,0 +1,8 @@
+<%+header%>
+<div style="padding: 20px; font-family: sans-serif;">
+    <h2 style="color: #2c3e50;">Hello World!</h2>
+    <p style="color: #7f8c8d;">这是 OpenWRT 24.10.2 一键编译的 LuCI 页面</p>
+    <p style="color: #3498db;">当前时间：<%=os.date("%Y-%m-%d %H:%M:%S")%></p>
+    <p style="color: #27ae60;">运行设备：<%=luci.sys.hostname()%></p>
+</div>
+<%+footer%>
