@@ -1,12 +1,12 @@
 #!/bin/sh
 
-VIP="192.168.1.5"
-INTERFACE="br-lan"
-PEER_IP="192.168.1.3"
-FAIL_THRESHOLD=3
-RECOVER_THRESHOLD=2
-CHECK_INTERVAL_FAIL=5
-CHECK_INTERVAL_RECOVER=10
+# 变量将由init.d脚本动态替换
+VIP="@VIP@"
+INTERFACE="@INTERFACE@"
+PEER_IP="@PEER_IP@"
+FAIL_THRESHOLD=@FAIL_THRESHOLD@
+RECOVER_THRESHOLD=@RECOVER_THRESHOLD@
+CHECK_INTERVAL=@CHECK_INTERVAL@
 
 LOG="/tmp/log/failover_watchdog.log"
 FAIL_COUNT=0
@@ -41,8 +41,6 @@ while true; do
             uci set openclash.config.enable='0'
             uci commit openclash
         fi
-
-        SLEEP_INTERVAL="$CHECK_INTERVAL_RECOVER"
     else
         log "[Watchdog] 旁路由 $PEER_IP 失联"
         RECOVER_COUNT=0
@@ -56,13 +54,9 @@ while true; do
             uci set openclash.config.enable='1'
             uci commit openclash
             /etc/init.d/openclash start
-            uci set openclash.config.enable='0'
-            uci commit openclash
         fi
-
-        SLEEP_INTERVAL="$CHECK_INTERVAL_FAIL"
     fi
 
     rotate_log
-    sleep "$SLEEP_INTERVAL"
+    sleep "$CHECK_INTERVAL"
 done

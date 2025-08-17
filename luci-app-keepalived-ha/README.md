@@ -19,3 +19,35 @@
 ## 安装方式
 ```bash
 opkg install luci-app-keepalived-ha_*.ipk
+
+## 文件结构
+```bash
+package/luci-app-keepalived-ha/
+├── Makefile                      # 编译规则文件
+└── files/
+    ├── etc/
+    │   ├── config/               # UCI配置文件
+    │   │   └── keepalived-ha
+    │   ├── init.d/               # 服务控制脚本
+    │   │   └── keepalived-ha
+    │   └── keepalived/           # 核心脚本目录
+    │       ├── failover_watchdog.sh  # 主路由监控脚本
+    │       ├── vip_up.sh             # 旁路由VIP绑定脚本
+    │       ├── vip_down.sh           # 旁路由VIP解绑脚本
+    │       └── template/             # 配置模板
+    │           ├── keepalived_main.conf  # 主路由keepalived模板
+    │           └── keepalived_peer.conf  # 旁路由keepalived模板
+    └── usr/
+        └── lib/
+            └── lua/
+                └── luci/
+                    ├── controller/   # 页面控制器
+                    │   └── keepalived-ha.lua
+                    ├── model/        # 配置数据模型
+                    │   └── cbi/
+                    │       └── keepalived-ha.lua
+                    └── view/         # 页面模板
+                        └── keepalived-ha/
+                            └── status.htm
+
+```
