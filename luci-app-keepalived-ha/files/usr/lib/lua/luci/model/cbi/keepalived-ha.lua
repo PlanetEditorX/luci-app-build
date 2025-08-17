@@ -3,8 +3,8 @@ local SimpleSection = require "luci.cbi".SimpleSection
 local net = require "luci.model.network".init()
 
 m = Map("keepalived-ha",
-	translate("Keepalived 高可用"),
-	translate("双路由虚拟IP（VIP）故障转移解决方案，支持主备路由自动切换。配置前请确保主备路由网络互通。")
+    translate("Keepalived 高可用"),
+    translate("双路由虚拟IP（VIP）故障转移解决方案，支持主备路由自动切换。配置前请确保主备路由网络互通。")
 )
 
 -- 基础设置段
@@ -12,7 +12,7 @@ s = m:section(SimpleSection, "base_settings", translate("基本设置"))
 s.anonymous = true
 
 -- 路由角色选择
-role = s:option(ListValue, "role", translate("路由角色"))
+local role = s:option(ListValue, "role", translate("路由角色"))
 role:value("main", translate("主路由"))
 role:value("peer", translate("备路由"))
 role.default = "main"
@@ -31,9 +31,9 @@ interface_option.description = translate("绑定VIP的网络接口，通常为LA
 
 -- 动态添加网络接口选项
 for _, iface in ipairs(luci.sys.net.devices()) do
-	if iface ~= "lo" and not iface:match("^tun") and not iface:match("^tap") then
-		interface_option:value(iface)
-	end
+    if iface ~= "lo" and not iface:match("^tun") and not iface:match("^tap") then
+        interface_option:value(iface)
+    end
 end
 
 -- 健康检查方式
@@ -56,65 +56,18 @@ http_url:depends("check_method", "http")
 
 -- VRID配置（虚拟路由标识）
 local vrid_option = s:option(Value, "vrid", translate("VRID 标识"),
-	translate("虚拟路由ID，主备路由必须一致，范围1-255"))
+    translate("虚拟路由ID，主备路由必须一致，范围1-255"))
 vrid_option.datatype = "range(1,255)"
 vrid_option.default = "51"
 
--- 主路由配置段
-main_section = m:section(SimpleSection, "main_settings", translate("主路由设置"))
-main_section.anonymous = true
-main_section.description = translate("仅当角色为'主路由'时生效的配置参数")
-main_section:depends("role", "main")
-
-local peer_ip_option = main_section:option(Value, "peer_ip", translate("备路由IP地址"))
-peer_ip_option.datatype = "ip4addr"
-peer_ip_option.default = "192.168.1.3"
-peer_ip_option.description = translate("备路由的实际IP地址，用于健康监测")
-
-local priority_main_option = main_section:option(Value, "priority", translate("VRRP优先级"),
-	translate("主路由优先级应低于备路由（建议50-90）"))
-priority_main_option.datatype = "uinteger"
-priority_main_option.default = "50"
-
-local fail_threshold_option = main_section:option(Value, "fail_threshold", translate("故障转移阈值"))
-fail_threshold_option.datatype = "range(1,10)"
-fail_threshold_option.default = "3"
-fail_threshold_option.description = translate("连续检测失败次数，达到此值触发转移（1-10）")
-
-local recover_threshold_option = main_section:option(Value, "recover_threshold", translate("恢复阈值"))
-recover_threshold_option.datatype = "range(1,10)"
-recover_threshold_option.default = "2"
-recover_threshold_option.description = translate("连续检测成功次数，达到此值恢复（1-10）")
-
-local check_interval_option = main_section:option(Value, "check_interval", translate("检查间隔（秒）"))
-check_interval_option.datatype = "range(2,60)"
-check_interval_option.default = "5"
-check_interval_option.description = translate("健康检查的时间间隔（2-60秒）")
-
--- 备路由配置段
-peer_section = m:section(SimpleSection, "peer_settings", translate("备路由设置"))
-peer_section.anonymous = true
-peer_section.description = translate("仅当角色为'备路由'时生效的配置参数")
-peer_section:depends("role", "peer")
-
-local main_ip_option = peer_section:option(Value, "main_ip", translate("主路由IP地址"))
-main_ip_option.datatype = "ip4addr"
-main_ip_option.default = "192.168.1.2"
-main_ip_option.description = translate("主路由的实际IP地址，用于健康监测")
-
-local priority_peer_option = peer_section:option(Value, "priority", translate("VRRP优先级"),
-	translate("备路由优先级应高于主路由（建议100-150）"))
-priority_peer_option.datatype = "uinteger"
-priority_peer_option.default = "100"
-
 -- 高级选项开关
 local advanced = s:option(Flag, "advanced_mode", translate("显示高级选项"),
-	translate("开启后可配置更多高级参数"))
+    translate("开启后可配置更多高级参数"))
 advanced.default = 0
 
 -- 抢占模式设置（高级选项）
 local preempt = s:option(ListValue, "preempt", translate("抢占模式"),
-	translate("主路由恢复后是否抢占VIP"))
+    translate("主路由恢复后是否抢占VIP"))
 preempt:value("true", translate("允许抢占"))
 preempt:value("false", translate("不允许抢占"))
 preempt.default = "true"
@@ -122,13 +75,71 @@ preempt:depends("advanced_mode", "1")
 
 -- OpenClash控制开关
 local control_openclash = s:option(Flag, "control_openclash", translate("自动控制OpenClash"),
-	translate("故障转移时自动启停OpenClash"))
+    translate("故障转移时自动启停OpenClash"))
 control_openclash.default = "1"
+
+---
+## Main Router Configuration
+
+-- 主路由配置段
+main_section = m:section(SimpleSection, "main_settings", translate("主路由设置"))
+main_section.anonymous = true
+main_section.description = translate("仅当角色为'主路由'时生效的配置参数")
+
+local peer_ip_option = main_section:option(Value, "peer_ip", translate("备路由IP地址"))
+peer_ip_option.datatype = "ip4addr"
+peer_ip_option.default = "192.168.1.3"
+peer_ip_option.description = translate("备路由的实际IP地址，用于健康监测")
+peer_ip_option:depends("role", "main")
+
+local priority_main_option = main_section:option(Value, "priority", translate("VRRP优先级"),
+    translate("主路由优先级应低于备路由（建议50-90）"))
+priority_main_option.datatype = "uinteger"
+priority_main_option.default = "50"
+priority_main_option:depends("role", "main")
+
+local fail_threshold_option = main_section:option(Value, "fail_threshold", translate("故障转移阈值"))
+fail_threshold_option.datatype = "range(1,10)"
+fail_threshold_option.default = "3"
+fail_threshold_option.description = translate("连续检测失败次数，达到此值触发转移（1-10）")
+fail_threshold_option:depends("role", "main")
+
+local recover_threshold_option = main_section:option(Value, "recover_threshold", translate("恢复阈值"))
+recover_threshold_option.datatype = "range(1,10)"
+recover_threshold_option.default = "2"
+recover_threshold_option.description = translate("连续检测成功次数，达到此值恢复（1-10）")
+recover_threshold_option:depends("role", "main")
+
+local check_interval_option = main_section:option(Value, "check_interval", translate("检查间隔（秒）"))
+check_interval_option.datatype = "range(2,60)"
+check_interval_option.default = "5"
+check_interval_option.description = translate("健康检查的时间间隔（2-60秒）")
+check_interval_option:depends("role", "main")
+
+---
+## Peer Router Configuration
+
+-- 备路由配置段
+peer_section = m:section(SimpleSection, "peer_settings", translate("备路由设置"))
+peer_section.anonymous = true
+peer_section.description = translate("仅当角色为'备路由'时生效的配置参数")
+
+local main_ip_option = peer_section:option(Value, "main_ip", translate("主路由IP地址"))
+main_ip_option.datatype = "ip4addr"
+main_ip_option.default = "192.168.1.2"
+main_ip_option.description = translate("主路由的实际IP地址，用于健康监测")
+main_ip_option:depends("role", "peer")
+
+local priority_peer_option = peer_section:option(Value, "priority", translate("VRRP优先级"),
+    translate("备路由优先级应高于主路由（建议100-150）"))
+priority_peer_option.datatype = "uinteger"
+priority_peer_option.default = "100"
+priority_peer_option:depends("role", "peer")
 
 -- 配置提交后的操作提示
 function m.on_after_commit(self)
-	luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
-	luci.util.perror(translate("配置已保存，服务已自动重启"))
+    luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
+    luci.util.perror(translate("配置已保存，服务已自动重启"))
 end
 
 return m
