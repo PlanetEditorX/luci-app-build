@@ -1,4 +1,5 @@
 -- 引入所需模块
+local Section = require "luci.cbi".Section
 local SimpleSection = require "luci.cbi".SimpleSection
 local net = require "luci.model.network".init()
 
@@ -7,8 +8,8 @@ m = Map("keepalived-ha",
     translate("双路由虚拟IP（VIP）故障转移解决方案，支持主备路由自动切换。配置前请确保主备路由网络互通。")
 )
 
--- 基础设置段（修正 SimpleSection 参数）
-s = m:section(SimpleSection, translate("基本设置"))  -- 移除多余的参数
+-- 基础设置段
+s = m:section(SimpleSection, translate("基本设置"))
 s.anonymous = true
 
 -- 路由角色选择
@@ -64,55 +65,49 @@ vrid.datatype = "range(1,255)"
 vrid.default = "51"
 vrid.rmempty = false
 
--- 主路由配置段（修正参数）
-main = m:section(SimpleSection, translate("主路由设置"))
-main.description = translate("仅当角色为'主路由'时生效的配置参数")
+-- 主路由配置段
+main = m:section(Section, "main", translate("主路由设置"),
+    translate("仅当角色为'主路由'时生效的配置参数"))
+main:depends("role", "main")
 main.anonymous = true
-main:depends("role", "main")  -- 添加此行：仅角色为main时显示
 
 peer_ip = main:option(Value, "peer_ip", translate("备路由IP地址"))
 peer_ip.datatype = "ip4addr"
 peer_ip.default = "192.168.1.3"
 peer_ip.rmempty = false
-peer_ip:depends("role", "main")
 peer_ip.description = translate("备路由的实际IP地址，用于健康监测")
 
 priority_main = main:option(Value, "priority", translate("VRRP优先级"),
     translate("主路由优先级应低于备路由（建议50-90）"))
 priority_main.datatype = "uinteger"
 priority_main.default = "50"
-priority_main:depends("role", "main")
 priority_main.rmempty = false
 
 fail_threshold = main:option(Value, "fail_threshold", translate("故障转移阈值"))
 fail_threshold.datatype = "range(1,10)"
 fail_threshold.default = "3"
 fail_threshold.description = translate("连续检测失败次数，达到此值触发转移（1-10）")
-fail_threshold:depends("role", "main")
 
 recover_threshold = main:option(Value, "recover_threshold", translate("恢复阈值"))
 recover_threshold.datatype = "range(1,10)"
 recover_threshold.default = "2"
 recover_threshold.description = translate("连续检测成功次数，达到此值恢复（1-10）")
-recover_threshold:depends("role", "main")
 
 check_interval = main:option(Value, "check_interval", translate("检查间隔（秒）"))
 check_interval.datatype = "range(2,60)"
 check_interval.default = "5"
 check_interval.description = translate("健康检查的时间间隔（2-60秒）")
-check_interval:depends("role", "main")
 
--- 备路由配置段（修正参数）
-peer = m:section(SimpleSection, translate("备路由设置"))
-peer.description = translate("仅当角色为'备路由'时生效的配置参数")
+-- 备路由配置段（修正顺序错误）
+peer = m:section(Section, "peer", translate("备路由设置"),
+    translate("仅当角色为'备路由'时生效的配置参数"))
+peer:depends("role", "peer")  -- 变量定义后再调用depends
 peer.anonymous = true
-peer:depends("role", "peer")  -- 添加此行：仅角色为peer时显示
 
 main_ip = peer:option(Value, "main_ip", translate("主路由IP地址"))
 main_ip.datatype = "ip4addr"
 main_ip.default = "192.168.1.2"
 main_ip.rmempty = false
-main_ip:depends("role", "peer")
 main_ip.description = translate("主路由的实际IP地址，用于健康监测")
 
 priority_peer = peer:option(Value, "priority", translate("VRRP优先级"),
@@ -120,7 +115,6 @@ priority_peer = peer:option(Value, "priority", translate("VRRP优先级"),
 priority_peer.datatype = "uinteger"
 priority_peer.default = "100"
 priority_peer.rmempty = false
-priority_peer:depends("role", "peer")
 
 -- 高级选项开关
 advanced = s:option(Flag, "advanced_mode", translate("显示高级选项"),
