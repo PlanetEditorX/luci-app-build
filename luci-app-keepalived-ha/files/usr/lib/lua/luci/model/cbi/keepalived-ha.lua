@@ -1,15 +1,10 @@
--- 引入所需模块
-local Section = require "luci.cbi".Section
-local SimpleSection = require "luci.cbi".SimpleSection
-local net = require "luci.model.network".init()
-
 m = Map("keepalived-ha",
     translate("Keepalived 高可用"),
     translate("双路由虚拟IP（VIP）故障转移解决方案，支持主备路由自动切换。配置前请确保主备路由网络互通。")
 )
 
--- 基础设置段
-s = m:section(SimpleSection, translate("基本设置"))
+-- 基础设置段（使用 NamedSection 而非 SimpleSection，确保继承自 AbstractSection）
+s = m:section(NamedSection, "general", "general", translate("基本设置"))
 s.anonymous = true
 
 -- 路由角色选择
@@ -28,7 +23,7 @@ vip.rmempty = false
 vip.description = translate("用于客户端访问的虚拟IP地址，需与路由在同一网段")
 
 interface = s:option(Value, "interface", translate("绑定网络接口"))
-interface.default = "eth0"
+interface.default = "br-lan"
 -- 过滤掉不适合的网络接口
 for _, iface in ipairs(luci.sys.net.devices()) do
     -- 排除回环和隧道接口
@@ -66,7 +61,7 @@ vrid.default = "51"
 vrid.rmempty = false
 
 -- 主路由配置段
-main = m:section(Section, "main", translate("主路由设置"),
+main = m:section(NamedSection, "main", "main", translate("主路由设置"),
     translate("仅当角色为'主路由'时生效的配置参数"))
 main:depends("role", "main")
 main.anonymous = true
@@ -98,10 +93,10 @@ check_interval.datatype = "range(2,60)"
 check_interval.default = "5"
 check_interval.description = translate("健康检查的时间间隔（2-60秒）")
 
--- 备路由配置段（修正顺序错误）
-peer = m:section(Section, "peer", translate("备路由设置"),
+-- 备路由配置段
+peer = m:section(NamedSection, "peer", "peer", translate("备路由设置"),
     translate("仅当角色为'备路由'时生效的配置参数"))
-peer:depends("role", "peer")  -- 变量定义后再调用depends
+peer:depends("role", "peer")
 peer.anonymous = true
 
 main_ip = peer:option(Value, "main_ip", translate("主路由IP地址"))

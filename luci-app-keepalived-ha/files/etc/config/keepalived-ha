@@ -1,7 +1,7 @@
 config general
     option role 'main'
     option vip '192.168.1.5'
-    option interface 'br-lan'
+    option interface 'eth0'
 
 config main
     option peer_ip '192.168.1.3'
