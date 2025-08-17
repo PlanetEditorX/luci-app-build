@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # ✅ 手动触发
   push:               # ✅ 自动触发
     paths:
-      - 'package/luci-app-*/**'  # ✅ 仅当 luci-app-xxx 目录下文件变动时触发
+      - 'luci-app-*/**'  # ✅ 仅当 luci-app-xxx 目录下文件变动时触发
 
 jobs:
   build-luci-apps:
