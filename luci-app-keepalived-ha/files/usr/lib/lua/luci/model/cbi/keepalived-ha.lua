@@ -27,7 +27,7 @@ vip.rmempty = false
 vip.description = translate("用于客户端访问的虚拟IP地址，需与路由在同一网段")
 
 interface = s:option(Value, "interface", translate("绑定网络接口"))
-interface.default = "eth0"
+interface.default = "br-lan"
 -- 过滤掉不适合的网络接口
 for _, iface in ipairs(luci.sys.net.devices()) do
     -- 排除回环和隧道接口
@@ -68,7 +68,6 @@ vrid.rmempty = false
 main = m:section(SimpleSection, translate("主路由设置"))
 main.description = translate("仅当角色为'主路由'时生效的配置参数")
 main.anonymous = true
-main:depends("role", "main")  -- 添加此行：仅角色为main时显示
 
 peer_ip = main:option(Value, "peer_ip", translate("备路由IP地址"))
 peer_ip.datatype = "ip4addr"
@@ -106,7 +105,6 @@ check_interval:depends("role", "main")
 peer = m:section(SimpleSection, translate("备路由设置"))
 peer.description = translate("仅当角色为'备路由'时生效的配置参数")
 peer.anonymous = true
-peer:depends("role", "peer")  -- 添加此行：仅角色为peer时显示
 
 main_ip = peer:option(Value, "main_ip", translate("主路由IP地址"))
 main_ip.datatype = "ip4addr"
