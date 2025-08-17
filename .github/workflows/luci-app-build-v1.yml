@@ -1,9 +1,10 @@
 name: 通用 LuCI 应用自动编译-单包（OpenWRT 24.10.2）
 
 on:
-  workflow_dispatch:  # 手动触发（支持任意luci-app-xxx包）
-  # push:
-  #   branches: [ main ]
+  workflow_dispatch:  # ✅ 手动触发
+  push:               # ✅ 自动触发
+    paths:
+      - 'package/luci-app-*/**'  # ✅ 仅当 luci-app-xxx 目录下文件变动时触发
 
 jobs:
   build-luci-app:
