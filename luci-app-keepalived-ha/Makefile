@@ -13,9 +13,15 @@ define Package/$(PKG_NAME)
     CATEGORY:=LuCI
     SUBMENU:=9. Services
     TITLE:=Keepalived High Availability
-    DESCRIPTION:=Dual-router VIP failover solution with Keepalived
     DEPENDS:=+keepalived +nftables +ip-full
     PKGARCH:=all
+endef
+
+# 包描述
+define Package/$(PKG_NAME)/description
+    Dual-router VIP failover solution with Keepalived.
+    Provides high availability through automatic VIP (Virtual IP) failover
+    between main and peer routers, with health check monitoring.
 endef
 
 # 安装文件
@@ -46,4 +52,3 @@ define Package/$(PKG_NAME)/install
 endef
 
 $(eval $(call BuildPackage,$(PKG_NAME)))
-    
