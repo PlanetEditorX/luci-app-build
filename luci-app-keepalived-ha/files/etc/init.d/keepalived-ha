@@ -17,7 +17,7 @@ check_files() {
     [ -d "$TEMPLATE_DIR" ] || { echo "缺少模板目录: $TEMPLATE_DIR"; missing=1; }
     [ -f "$VIP_UP_SCRIPT" ] || { echo "缺少脚本: $VIP_UP_SCRIPT"; missing=1; }
     [ -f "$VIP_DOWN_SCRIPT" ] || { echo "缺少脚本: $VIP_DOWN_SCRIPT"; missing=1; }
-    [ -f "$WATCHDOG_SCRIPT" ] || { echo "缺少脚本: $WATCHDOG_SCRIPT"; missing=1; }
+    [ -f "$TEMPLATE_DIR/failover_watchdog.sh.template" ] || { echo "缺少脚本: $TEMPLATE_DIR/failover_watchdog.sh.template"; missing=1; }
     [ "$missing" -eq 1 ] && exit 1
 }
 
@@ -132,7 +132,7 @@ replace_placeholders() {
 
     # 拷贝模板
     cp "$TEMPLATE_DIR/failover_watchdog.sh.template" $WATCHDOG_SCRIPT
-    
+
     # 替换监控脚本中的占位符
     sed -i "s|@VIP@|$VIP|g; s|@ROLE@|$ROLE|g; s|@INTERFACE@|$INTERFACE|g; s|@CHECK_IP@|$CHECK_IP|g; \
             s|@FAIL_THRESHOLD@|$FAIL_THRESHOLD|g; s|@RECOVER_THRESHOLD@|$RECOVER_THRESHOLD|g; \
