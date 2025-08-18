@@ -61,18 +61,18 @@ local vrid_option = s:option(Value, "vrid", translate("VRID 标识"),
 vrid_option.datatype = "range(1,255)"
 vrid_option.default = "51"
 
--- 高级选项开关
-local advanced = s:option(Flag, "advanced_mode", translate("显示高级选项"),
-    translate("开启后可配置更多高级参数"))
-advanced.default = 0
+-- -- 高级选项开关
+-- local advanced = s:option(Flag, "advanced_mode", translate("显示高级选项"),
+--     translate("开启后可配置更多高级参数"))
+-- advanced.default = 0
 
--- 抢占模式设置（高级选项）
-local preempt = s:option(ListValue, "preempt", translate("抢占模式"),
-    translate("主路由恢复后是否抢占VIP"))
-preempt:value("true", translate("允许抢占"))
-preempt:value("false", translate("不允许抢占"))
-preempt.default = "true"
-preempt:depends("advanced_mode", "1")
+-- -- 抢占模式设置（高级选项）
+-- local preempt = s:option(ListValue, "preempt", translate("抢占模式"),
+--     translate("主路由恢复后是否抢占VIP"))
+-- preempt:value("true", translate("允许抢占"))
+-- preempt:value("false", translate("不允许抢占"))
+-- preempt.default = "true"
+-- preempt:depends("advanced_mode", "1")
 
 -- OpenClash控制开关
 local control_openclash = s:option(Flag, "control_openclash", translate("自动控制OpenClash"),
