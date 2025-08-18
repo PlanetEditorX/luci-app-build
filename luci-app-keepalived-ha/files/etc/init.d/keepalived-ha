@@ -3,6 +3,13 @@
 START=99
 STOP=10
 
+# 配置文件和脚本路径定义
+KEEPALIVED_CONF="/etc/keepalived/keepalived.conf"
+TEMPLATE_DIR="/etc/keepalived/template"
+VIP_UP_SCRIPT="/etc/keepalived/vip_up.sh"
+VIP_DOWN_SCRIPT="/etc/keepalived/vip_down.sh"
+WATCHDOG_SCRIPT="/etc/keepalived/failover_watchdog.sh"
+
 # 初始化配置文件（确保所有必要的节和选项存在）
 init_config() {
     local CONF="/etc/config/keepalived-ha"
@@ -71,18 +78,62 @@ init_config() {
     fi
 }
 
+# 读取UCI配置并替换所有占位符
+replace_placeholders() {
+    # 读取基础配置
+    local ROLE=$(uci get keepalived-ha.general.role)
+    local VIP=$(uci get keepalived-ha.general.vip)
+    local INTERFACE=$(uci get keepalived-ha.general.interface)
+    local VRID=$(uci get keepalived-ha.general.vrid)
+    local PREEMPT=$(uci get keepalived-ha.general.preempt)
+
+    # 根据角色读取对应参数
+    if [ "$ROLE" = "main" ]; then
+        local PEER_IP=$(uci get keepalived-ha.main.peer_ip)
+        local PRIORITY=$(uci get keepalived-ha.main.priority)
+        local FAIL_THRESHOLD=$(uci get keepalived-ha.main.fail_threshold)
+        local RECOVER_THRESHOLD=$(uci get keepalived-ha.main.recover_threshold)
+        local CHECK_INTERVAL=$(uci get keepalived-ha.main.check_interval)
+        local TEMPLATE="$TEMPLATE_DIR/keepalived_main.conf"
+    else
+        local PEER_IP=$(uci get keepalived-ha.peer.main_ip)
+        local PRIORITY=$(uci get keepalived-ha.peer.priority)
+        local FAIL_THRESHOLD=$(uci get keepalived-ha.main.fail_threshold)  # 复用主路由的阈值（或按需调整）
+        local RECOVER_THRESHOLD=$(uci get keepalived-ha.main.recover_threshold)
+        local CHECK_INTERVAL=$(uci get keepalived-ha.main.check_interval)
+        local TEMPLATE="$TEMPLATE_DIR/keepalived_peer.conf"
+    fi
+
+    # 替换VIP绑定/解绑脚本中的占位符
+    sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
+
+    # 替换监控脚本中的占位符
+    sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@PEER_IP@|$PEER_IP|g; \
+            s|@FAIL_THRESHOLD@|$FAIL_THRESHOLD|g; s|@RECOVER_THRESHOLD@|$RECOVER_THRESHOLD|g; \
+            s|@CHECK_INTERVAL@|$CHECK_INTERVAL|g" "$WATCHDOG_SCRIPT"
+
+    # 生成keepalived主配置文件（从模板替换）
+    sed "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@VRID@|$VRID|g; \
+        s|@PRIORITY@|$PRIORITY|g; s|@PREEMPT@|$PREEMPT|g" "$TEMPLATE" > "$KEEPALIVED_CONF"
+}
+
 start() {
-    init_config  # 启动时确保配置初始化
-    # 其他启动逻辑（如启动keepalived、监控脚本等）
+    init_config  # 确保配置完整
+    replace_placeholders  # 替换所有占位符
+
+    # 启动keepalived服务和监控脚本
     echo "Starting keepalived-ha service..."
-    /etc/keepalived/keepalived_boot.sh &
+    /etc/init.d/keepalived start  # 启动keepalived主服务
+    if ! pgrep -f "failover_watchdog.sh" >/dev/null; then
+        "$WATCHDOG_SCRIPT" &  # 启动监控脚本
+    fi
 }
 
 stop() {
-    # 停止逻辑
+    # 停止服务和脚本
     echo "Stopping keepalived-ha service..."
-    pkill -f "keepalived"
-    pkill -f "failover_watchdog.sh"
+    /etc/init.d/keepalived stop  # 停止keepalived主服务
+    pkill -f "failover_watchdog.sh"  # 停止监控脚本
 }
 
 restart() {
