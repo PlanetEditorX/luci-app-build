@@ -9,17 +9,23 @@ m = Map("keepalived-ha",
     translate("双路由虚拟IP（VIP）故障转移解决方案，支持主备路由自动切换。配置前请确保主备路由网络互通。")
 )
 
+-- 添加角色切换确认的JavaScript
+s = m:section(SimpleSection)
+s.template = "keepalived-ha/role_confirm"
+
 -- 基础设置段 (这是您的命名节'general')
 s = m:section(NamedSection, "general", "general", translate("基本设置"))
 s.anonymous = false
 
--- 路由角色选择
+-- 路由角色选择 - 添加onchange事件
 local role = s:option(ListValue, "role", translate("路由角色"))
 role:value("main", translate("主路由"))
 role:value("peer", translate("备路由"))
 role.default = "main"
 role.rmempty = false
 role.description = translate("主路由正常情况下持有VIP，备路由在主路由故障时接管")
+-- 添加onchange事件触发确认对话框
+role:attr("onchange", "return confirmRoleChange(this)")
 
 -- 公共配置
 local vip_option = s:option(Value, "vip", translate("虚拟IP（VIP）"))
@@ -82,12 +88,10 @@ control_openclash.default = "1"
 
 
 -- 根据UCI配置中'role'的值来决定显示哪个配置节
--- 这比在每个选项上使用 depends("role", "...") 更为高效和正确
 local role_value = uci:get("keepalived-ha", "general", "role") or "main"
 
 if role_value == "main" then
     -- 主路由配置段
-    -- 这是一个类型为'main'的匿名节
     main_section = m:section(TypedSection, "main", translate("主路由设置"))
     main_section.anonymous = true
     main_section.addremove = false
@@ -121,7 +125,6 @@ end
 
 if role_value == "peer" then
     -- 备路由配置段
-    -- 这是一个类型为'peer'的匿名节
     peer_section = m:section(TypedSection, "peer", translate("备路由设置"))
     peer_section.anonymous = true
     peer_section.addremove = false
