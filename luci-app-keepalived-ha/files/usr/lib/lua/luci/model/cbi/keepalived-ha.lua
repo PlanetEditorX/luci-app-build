@@ -10,69 +10,68 @@ m = Map("keepalived-ha",
     translate("双路由虚拟IP（VIP）故障转移解决方案，支持主备路由自动切换。配置前请确保主备路由网络互通。")
 )
 
--- ########## 关键修改：直接嵌入JavaScript（无需模板文件）##########
-local js_section = m:section(SimpleSection)
-function js_section:render()
+-- ########## 1. 直接嵌入JavaScript（无模板依赖）##########
+local js_sec = m:section(SimpleSection)
+function js_sec:render()
     return [[
-    <script type="text/javascript">
+    <script>
         // 角色切换确认+自动保存
-        function confirmRoleChange(select) {
-            const newRole = select.options[select.selectedIndex].text;
-            if (confirm('确定切换为【' + newRole + '】吗？切换后自动保存配置！')) {
-                // 找到LuCI默认配置表单并提交
-                const form = document.querySelector('form[method="post"]');
-                if (form) form.submit();
+        function confirmRoleChange(sel) {
+            const newRole = sel.options[sel.selectedIndex].text;
+            if (confirm('确定切换为【' + newRole + '】吗？切换后自动保存！')) {
+                document.querySelector('form').submit();
                 return true;
             } else {
-                // 取消时恢复原选择
-                select.value = select.getAttribute('data-orig');
+                sel.value = sel.dataset.orig; // 恢复初始值
                 return false;
             }
         }
-        // 页面加载时记录初始角色值
+        // 页面加载记录初始角色
         window.onload = function() {
-            const roleSel = document.querySelector('select[name*="role"]');
-            if (roleSel) roleSel.setAttribute('data-orig', roleSel.value);
+            const roleSel = document.querySelector('#role-select');
+            if (roleSel) roleSel.dataset.orig = roleSel.value;
         };
     </script>
     ]]
 end
 
--- 基础设置段 (命名节'general')
-s = m:section(NamedSection, "general", "general", translate("基本设置"))
-s.anonymous = false
+-- ########## 2. 基础设置段（父section必须先定义）##########
+local general_sec = m:section(NamedSection, "general", "general", translate("基本设置"))
+general_sec.anonymous = false
 
--- 路由角色选择（带onchange事件）
-local role = s:option(ListValue, "role", translate("路由角色"))
+-- ########## 3. 路由角色选择（修复cbid报错）##########
+local role = general_sec:option(ListValue, "role", translate("路由角色"))
 role:value("main", translate("主路由"))
 role:value("peer", translate("备路由"))
 role.default = "main"
 role.rmempty = false
 role.description = translate("主路由正常情况下持有VIP，备路由在主路由故障时接管")
 
--- ########## 修复：正确渲染带onchange的下拉框 ##########
+-- 修复：用固定ID替代self:cbid()，避免section nil报错
 function role:render()
-    local id = self:cbid()
-    local name = self:name()
-    local curr_val = self:cfgvalue() or self.default or ""
+    -- 直接定义固定ID（避免依赖self.section），确保HTML元素唯一
+    local fixed_id = "role-select"
+    local input_name = self:name()
+    local current_val = self:cfgvalue() or self.default or "main"
 
-    -- 生成带onchange事件的select标签
+    -- 生成带onchange的下拉框（用固定ID绑定JS）
     local html = string.format(
         '<select name="%s" id="%s" class="cbi-input-select" onchange="return confirmRoleChange(this)">',
-        util.htmlescape(name), util.htmlescape(id)
+        util.htmlescape(input_name), fixed_id
     )
 
     -- 添加选项
     for _, opt in ipairs(self.options) do
-        local val, txt = opt[1], opt[2]
-        local selected = (val == curr_val) and ' selected' or ''
+        local val = opt[1]
+        local txt = opt[2]
+        local selected = (val == current_val) and ' selected="selected"' or ""
         html = html .. string.format(
             '<option value="%s"%s>%s</option>',
             util.htmlescape(val), selected, util.htmlescape(txt)
         )
     end
 
-    -- 添加描述
+    -- 添加描述文本
     html = html .. '</select>'
     if self.description then
         html = html .. string.format(
@@ -84,13 +83,13 @@ function role:render()
     return html
 end
 
--- ########## 以下为原公共配置（无需修改）##########
-local vip_option = s:option(Value, "vip", translate("虚拟IP（VIP）"))
+-- ########## 4. 公共配置（与原代码一致，无修改）##########
+local vip_option = general_sec:option(Value, "vip", translate("虚拟IP（VIP）"))
 vip_option.datatype = "ip4addr"
 vip_option.default = "192.168.1.5"
 vip_option.description = translate("用于客户端访问的虚拟IP地址，需与路由在同一网段")
 
-local interface_option = s:option(Value, "interface", translate("绑定网络接口"))
+local interface_option = general_sec:option(Value, "interface", translate("绑定网络接口"))
 interface_option.default = "br-lan"
 interface_option.description = translate("绑定VIP的网络接口，通常为LAN接口")
 
@@ -102,36 +101,36 @@ for _, iface in ipairs(luci.sys.net.devices()) do
 end
 
 -- 健康检查方式
-local check_method = s:option(ListValue, "check_method", translate("健康检查方式"))
+local check_method = general_sec:option(ListValue, "check_method", translate("健康检查方式"))
 check_method:value("ping", translate("ICMP Ping"))
 check_method:value("tcp", translate("TCP 端口"))
 check_method:value("http", translate("HTTP 请求"))
 check_method.default = "ping"
 
 -- TCP检查端口（依赖检查方式）
-local tcp_port = s:option(Value, "tcp_port", translate("TCP 检查端口"))
+local tcp_port = general_sec:option(Value, "tcp_port", translate("TCP 检查端口"))
 tcp_port.datatype = "port"
 tcp_port.default = "80"
 tcp_port:depends("check_method", "tcp")
 
 -- HTTP检查URL（依赖检查方式）
-local http_url = s:option(Value, "http_url", translate("HTTP 检查URL"))
+local http_url = general_sec:option(Value, "http_url", translate("HTTP 检查URL"))
 http_url.default = "http://192.168.1.1/"
 http_url:depends("check_method", "http")
 
 -- VRID配置（虚拟路由标识）
-local vrid_option = s:option(Value, "vrid", translate("VRID 标识"),
+local vrid_option = general_sec:option(Value, "vrid", translate("VRID 标识"),
     translate("虚拟路由ID，主备路由必须一致，范围1-255"))
 vrid_option.datatype = "range(1,255)"
 vrid_option.default = "51"
 
 -- 高级选项开关
-local advanced = s:option(Flag, "advanced_mode", translate("显示高级选项"),
+local advanced = general_sec:option(Flag, "advanced_mode", translate("显示高级选项"),
     translate("开启后可配置更多高级参数"))
 advanced.default = 0
 
 -- 抢占模式设置（高级选项）
-local preempt = s:option(ListValue, "preempt", translate("抢占模式"),
+local preempt = general_sec:option(ListValue, "preempt", translate("抢占模式"),
     translate("主路由恢复后是否抢占VIP"))
 preempt:value("true", translate("允许抢占"))
 preempt:value("false", translate("不允许抢占"))
@@ -139,15 +138,15 @@ preempt.default = "true"
 preempt:depends("advanced_mode", "1")
 
 -- OpenClash控制开关
-local control_openclash = s:option(Flag, "control_openclash", translate("自动控制OpenClash"),
+local control_openclash = general_sec:option(Flag, "control_openclash", translate("自动控制OpenClash"),
     translate("故障转移时自动启停OpenClash"))
 control_openclash.default = "1"
 
--- 根据角色显示对应配置段
+-- ########## 5. 根据角色显示对应配置段（与原代码一致）##########
 local role_value = uci:get("keepalived-ha", "general", "role") or "main"
 if role_value == "main" then
     -- 主路由配置段
-    main_section = m:section(TypedSection, "main", translate("主路由设置"))
+    local main_section = m:section(TypedSection, "main", translate("主路由设置"))
     main_section.anonymous = true
     main_section.addremove = false
     main_section.description = translate("仅当角色为'主路由'时生效的配置参数")
@@ -180,7 +179,7 @@ end
 
 if role_value == "peer" then
     -- 备路由配置段
-    peer_section = m:section(TypedSection, "peer", translate("备路由设置"))
+    local peer_section = m:section(TypedSection, "peer", translate("备路由设置"))
     peer_section.anonymous = true
     peer_section.addremove = false
     peer_section.description = translate("仅当角色为'备路由'时生效的配置参数")
@@ -196,7 +195,7 @@ if role_value == "peer" then
     priority_peer_option.default = "100"
 end
 
--- 配置提交后重启服务
+-- ########## 6. 配置提交后重启服务（与原代码一致）##########
 function m.on_after_commit(self)
     luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
     luci.util.perror(translate("配置已保存，服务已自动重启"))
