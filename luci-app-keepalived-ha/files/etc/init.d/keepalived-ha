@@ -5,7 +5,6 @@ STOP=10
 
 # 配置文件和脚本路径定义
 KEEPALIVED_CONF="/etc/keepalived/keepalived.conf"
-KEEPALIVED_CONF_DST="/tmp/keepalived.conf"
 TEMPLATE_DIR="/etc/keepalived/template"
 VIP_UP_SCRIPT="/etc/keepalived/vip_up.sh"
 VIP_DOWN_SCRIPT="/etc/keepalived/vip_down.sh"
@@ -145,9 +144,10 @@ replace_placeholders() {
     sed "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@VRID@|$VRID|g; \
         s|@PRIORITY@|$PRIORITY|g; s|@PREEMPT@|$PREEMPT|g" "$TEMPLATE" > "$KEEPALIVED_CONF"
     logger -t keepalived-ha "已生成keepalived配置文件: $KEEPALIVED_CONF"
+    logger -t keepalived-ha "keepalived配置内容如下 >>>\n$(cat $KEEPALIVED_CONF)"
 
     # 设置keepalived配置文件读取位置
-    sed -i 's/^KEEPALIVED_CONF=\/tmp\/keepalived\.conf$/KEEPALIVED_CONF=\/etc\/keepalived\/keepalived\.conf/' /etc/init.d/keepalived
+    # sed -i 's/^KEEPALIVED_CONF=\/tmp\/keepalived\.conf$/KEEPALIVED_CONF=\/etc\/keepalived\/keepalived\.conf/' /etc/init.d/keepalived
 }
 
 # 配置nftables允许VRRP协议（不覆盖现有规则）
@@ -179,6 +179,14 @@ EOF
     fi
 }
 
+remove_vip() {
+    if [ -x "$VIP_DOWN_SCRIPT" ]; then
+        "$VIP_DOWN_SCRIPT"
+    else
+        logger -t keepalived-ha "无法执行 $VIP_DOWN_SCRIPT：权限不足或文件不存在"
+    fi
+}
+
 start() {
     check_files  # 检查依赖文件
     init_config  # 确保配置完整
@@ -188,6 +196,9 @@ start() {
     # 启动keepalived服务和监控脚本
     echo "Starting keepalived-ha service..."
     /etc/init.d/keepalived start >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已启动" || logger -t keepalived-ha "keepalived服务启动失败"
+    /usr/sbin/keepalived -f "$KEEPALIVED_CONF" -D >/dev/null 2>&1 && \
+    logger -t keepalived-ha "keepalived服务已启动（使用配置:$KEEPALIVED_CONF）" || \
+    logger -t keepalived-ha "keepalived服务启动失败"
 
     echo "Starting failover_watchdog service..."
     /etc/init.d/failover_watchdog start >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog监控服务已启动" || logger -t keepalived-ha "failover_watchdog监控服务启动失败"
@@ -202,6 +213,7 @@ stop() {
 
 restart() {
     stop
+    remove_vip
     sleep 5  # 等待进程完全停止
     start
 }
