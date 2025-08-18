@@ -6,7 +6,7 @@ local uci = require("luci.model.uci").cursor()
 
 m = Map("keepalived-ha",
     translate("Keepalived 高可用"),
-    translate("双路由虚拟IP（VIP）故障转移解决方案，支持主备路由自动切换。配置前请确保主备路由网络互通。")
+    translate("双路由虚拟IP（VIP）故障转移解决方案，支持主从路由自动切换。配置前请确保主从路由网络互通。")
 )
 
 -- 基础设置段 (这是您的命名节'general')
@@ -16,10 +16,9 @@ s.anonymous = false
 -- 路由角色选择
 local role = s:option(ListValue, "role", translate("路由角色"))
 role:value("main", translate("主路由"))
-role:value("peer", translate("备路由"))
+role:value("peer", translate("从路由"))
 role.default = "main"
-role.rmempty = false
-role.description = translate("主路由正常情况下持有VIP，备路由在主路由故障时接管")
+role.description = translate("从路由正常情况下持有VIP，主路由在从路由故障时接管<br/>切换路由角色后，需要保存并应用后才能生效")
 
 -- 公共配置
 local vip_option = s:option(Value, "vip", translate("虚拟IP（VIP）"))
@@ -58,7 +57,7 @@ http_url:depends("check_method", "http")
 
 -- VRID配置（虚拟路由标识）
 local vrid_option = s:option(Value, "vrid", translate("VRID 标识"),
-    translate("虚拟路由ID，主备路由必须一致，范围1-255"))
+    translate("虚拟路由ID，主从路由必须一致，范围1-255"))
 vrid_option.datatype = "range(1,255)"
 vrid_option.default = "51"
 
@@ -83,7 +82,8 @@ control_openclash.default = "1"
 
 -- 根据UCI配置中'role'的值来决定显示哪个配置节
 -- 这比在每个选项上使用 depends("role", "...") 更为高效和正确
-local role_value = uci:get("keepalived-ha", "general", "role") or "main"
+local role_value = luci.http.formvalue("cbid.keepalived-ha.general.role") or uci:get("keepalived-ha", "general", "role") or "main"
+
 
 if role_value == "main" then
     -- 主路由配置段
@@ -93,13 +93,13 @@ if role_value == "main" then
     main_section.addremove = false
     main_section.description = translate("仅当角色为'主路由'时生效的配置参数")
 
-    local peer_ip_option = main_section:option(Value, "peer_ip", translate("备路由IP地址"))
+    local peer_ip_option = main_section:option(Value, "peer_ip", translate("从路由IP地址"))
     peer_ip_option.datatype = "ip4addr"
     peer_ip_option.default = "192.168.1.3"
-    peer_ip_option.description = translate("备路由的实际IP地址，用于健康监测")
+    peer_ip_option.description = translate("从路由的实际IP地址，用于健康监测")
 
     local priority_main_option = main_section:option(Value, "priority", translate("VRRP优先级"),
-        translate("主路由优先级应低于备路由（建议50-90）"))
+        translate("主路由优先级应低于从路由（建议50-90）"))
     priority_main_option.datatype = "uinteger"
     priority_main_option.default = "50"
 
@@ -120,12 +120,11 @@ if role_value == "main" then
 end
 
 if role_value == "peer" then
-    -- 备路由配置段
-    -- 这是一个类型为'peer'的匿名节
-    peer_section = m:section(TypedSection, "peer", translate("备路由设置"))
+    -- 从路由配置段
+    peer_section = m:section(TypedSection, "peer", translate("从路由设置"))
     peer_section.anonymous = true
     peer_section.addremove = false
-    peer_section.description = translate("仅当角色为'备路由'时生效的配置参数")
+    peer_section.description = translate("仅当角色为'从路由'时生效的配置参数")
 
     local main_ip_option = peer_section:option(Value, "main_ip", translate("主路由IP地址"))
     main_ip_option.datatype = "ip4addr"
@@ -133,7 +132,7 @@ if role_value == "peer" then
     main_ip_option.description = translate("主路由的实际IP地址，用于健康监测")
 
     local priority_peer_option = peer_section:option(Value, "priority", translate("VRRP优先级"),
-        translate("备路由优先级应高于主路由（建议100-150）"))
+        translate("从路由优先级应高于主路由（建议100-150）"))
     priority_peer_option.datatype = "uinteger"
     priority_peer_option.default = "100"
 end
