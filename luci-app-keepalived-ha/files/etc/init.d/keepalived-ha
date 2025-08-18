@@ -148,6 +148,7 @@ replace_placeholders() {
 
     # 设置keepalived配置文件读取位置
     # sed -i 's/^KEEPALIVED_CONF=\/tmp\/keepalived\.conf$/KEEPALIVED_CONF=\/etc\/keepalived\/keepalived\.conf/' /etc/init.d/keepalived
+    chmod +x "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT" "$WATCHDOG_SCRIPT"
 }
 
 # 配置nftables允许VRRP协议（不覆盖现有规则）
@@ -195,7 +196,7 @@ start() {
 
     # 启动keepalived服务和监控脚本
     echo "Starting keepalived-ha service..."
-    /etc/init.d/keepalived start >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已启动" || logger -t keepalived-ha "keepalived服务启动失败"
+    # /etc/init.d/keepalived start >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已启动" || logger -t keepalived-ha "keepalived服务启动失败"
     /usr/sbin/keepalived -f "$KEEPALIVED_CONF" -D >/dev/null 2>&1 && \
     logger -t keepalived-ha "keepalived服务已启动（使用配置:$KEEPALIVED_CONF）" || \
     logger -t keepalived-ha "keepalived服务启动失败"
