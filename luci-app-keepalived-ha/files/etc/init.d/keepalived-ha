@@ -199,7 +199,12 @@ stop() {
     # 停止服务和脚本
     echo "Stopping keepalived-ha service..."
     /etc/init.d/keepalived stop >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已停止"
-    pkill -f "failover_watchdog.sh" >/dev/null 2>&1 && logger -t keepalived-ha "监控脚本已停止"
+    # 停止监控脚本（兼容无 pkill 的系统）
+    local pid=$(ps | grep -v grep | grep "failover_watchdog.sh" | awk '{print $1}')
+    if [ -n "$pid" ]; then
+        kill $pid >/dev/null 2>&1
+        logger -t keepalived-ha "监控脚本已停止"
+    fi
 }
 
 restart() {
