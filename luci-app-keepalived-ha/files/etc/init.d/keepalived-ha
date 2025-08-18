@@ -76,6 +76,13 @@ init_config() {
     if uci -q changes keepalived-ha; then
         uci commit keepalived-ha
     fi
+
+    # 在 init.d/keepalived-ha 中添加
+    if ! grep -q "net.ipv4.ip_nonlocal_bind=1" /etc/sysctl.conf; then
+        echo "net.ipv4.ip_nonlocal_bind=1" >> /etc/sysctl.conf
+        sysctl -p >/dev/null 2>&1
+        logger -t keepalived-ha "已设置 ip_nonlocal_bind 参数"
+    fi
 }
 
 # 读取UCI配置并替换所有占位符
