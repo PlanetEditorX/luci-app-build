@@ -10,6 +10,16 @@ VIP_UP_SCRIPT="/etc/keepalived/vip_up.sh"
 VIP_DOWN_SCRIPT="/etc/keepalived/vip_down.sh"
 WATCHDOG_SCRIPT="/etc/keepalived/failover_watchdog.sh"
 
+# 检查文件是否存在
+check_files() {
+    local missing=0
+    [ -d "$TEMPLATE_DIR" ] || { echo "缺少模板目录: $TEMPLATE_DIR"; missing=1; }
+    [ -f "$VIP_UP_SCRIPT" ] || { echo "缺少脚本: $VIP_UP_SCRIPT"; missing=1; }
+    [ -f "$VIP_DOWN_SCRIPT" ] || { echo "缺少脚本: $VIP_DOWN_SCRIPT"; missing=1; }
+    [ -f "$WATCHDOG_SCRIPT" ] || { echo "缺少脚本: $WATCHDOG_SCRIPT"; missing=1; }
+    [ "$missing" -eq 1 ] && exit 1
+}
+
 # 初始化配置文件（确保所有必要的节和选项存在）
 init_config() {
     local CONF="/etc/config/keepalived-ha"
@@ -75,9 +85,10 @@ init_config() {
     # 只有在有修改时才提交，避免不必要的配置变动
     if uci -q changes keepalived-ha; then
         uci commit keepalived-ha
+        logger -t keepalived-ha "UCI配置已更新"
     fi
 
-    # 在 init.d/keepalived-ha 中添加
+    # 设置非本地IP绑定参数
     if ! grep -q "net.ipv4.ip_nonlocal_bind=1" /etc/sysctl.conf; then
         echo "net.ipv4.ip_nonlocal_bind=1" >> /etc/sysctl.conf
         sysctl -p >/dev/null 2>&1
@@ -105,31 +116,40 @@ replace_placeholders() {
     else
         local PEER_IP=$(uci get keepalived-ha.peer.main_ip)
         local PRIORITY=$(uci get keepalived-ha.peer.priority)
-        local FAIL_THRESHOLD=$(uci get keepalived-ha.main.fail_threshold)  # 复用主路由的阈值（或按需调整）
-        local RECOVER_THRESHOLD=$(uci get keepalived-ha.main.recover_threshold)
-        local CHECK_INTERVAL=$(uci get keepalived-ha.main.check_interval)
+        # 从路由建议使用自己的阈值配置，避免依赖主路由
+        local FAIL_THRESHOLD=$(uci get keepalived-ha.main.fail_threshold 2>/dev/null || echo 3)
+        local RECOVER_THRESHOLD=$(uci get keepalived-ha.main.recover_threshold 2>/dev/null || echo 2)
+        local CHECK_INTERVAL=$(uci get keepalived-ha.main.check_interval 2>/dev/null || echo 5)
         local TEMPLATE="$TEMPLATE_DIR/keepalived_peer.conf"
     fi
 
     # 替换VIP绑定/解绑脚本中的占位符
     sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
+    logger -t keepalived-ha "已替换VIP脚本占位符"
 
     # 替换监控脚本中的占位符
     sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@PEER_IP@|$PEER_IP|g; \
             s|@FAIL_THRESHOLD@|$FAIL_THRESHOLD|g; s|@RECOVER_THRESHOLD@|$RECOVER_THRESHOLD|g; \
             s|@CHECK_INTERVAL@|$CHECK_INTERVAL|g" "$WATCHDOG_SCRIPT"
+    logger -t keepalived-ha "已替换监控脚本占位符"
 
     # 生成keepalived主配置文件（从模板替换）
     sed "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@VRID@|$VRID|g; \
         s|@PRIORITY@|$PRIORITY|g; s|@PREEMPT@|$PREEMPT|g" "$TEMPLATE" > "$KEEPALIVED_CONF"
+    logger -t keepalived-ha "已生成keepalived配置文件: $KEEPALIVED_CONF"
 }
 
-start() {
-    init_config  # 确保配置完整
-    replace_placeholders  # 替换所有占位符
-
-        # 添加 nftables 配置（确保 VRRP 协议通过）
-    cat <<EOF > /etc/nftables.conf
+# 配置nftables允许VRRP协议（不覆盖现有规则）
+configure_nftables() {
+    # 检查是否已存在VRRP规则
+    if ! nft list ruleset | grep -q "ip protocol 112 accept"; then
+        # 尝试追加规则到input链（如果链存在）
+        if nft list chain inet filter input >/dev/null 2>&1; then
+            nft add rule inet filter input ip protocol 112 accept
+            logger -t keepalived-ha "已添加VRRP规则到nftables"
+        else
+            # 链不存在时创建基础规则（兼容无默认规则的系统）
+            cat <<EOF > /etc/nftables.conf
 table inet filter {
     chain input {
         type filter hook input priority 0; policy accept;
@@ -140,25 +160,41 @@ table inet filter {
     }
 }
 EOF
-    nft -f /etc/nftables.conf
-    logger -t keepalived-ha "[HA] nftables 配置完成"
-    
+            nft -f /etc/nftables.conf
+            logger -t keepalived-ha "已创建nftables基础规则并允许VRRP"
+        fi
+    else
+        logger -t keepalived-ha "nftables已存在VRRP规则，无需重复配置"
+    fi
+}
+
+start() {
+    check_files  # 检查依赖文件
+    init_config  # 确保配置完整
+    replace_placeholders  # 替换所有占位符
+    configure_nftables  # 配置防火墙规则
+
     # 启动keepalived服务和监控脚本
     echo "Starting keepalived-ha service..."
-    /etc/init.d/keepalived start  # 启动keepalived主服务
+    /etc/init.d/keepalived start >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已启动" || logger -t keepalived-ha "keepalived服务启动失败"
+
     if ! pgrep -f "failover_watchdog.sh" >/dev/null; then
-        "$WATCHDOG_SCRIPT" &  # 启动监控脚本
+        "$WATCHDOG_SCRIPT" &
+        logger -t keepalived-ha "监控脚本已启动"
+    else
+        logger -t keepalived-ha "监控脚本已在运行"
     fi
 }
 
 stop() {
     # 停止服务和脚本
     echo "Stopping keepalived-ha service..."
-    /etc/init.d/keepalived stop  # 停止keepalived主服务
-    pkill -f "failover_watchdog.sh"  # 停止监控脚本
+    /etc/init.d/keepalived stop >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已停止"
+    pkill -f "failover_watchdog.sh" >/dev/null 2>&1 && logger -t keepalived-ha "监控脚本已停止"
 }
 
 restart() {
     stop
+    sleep 2  # 等待进程完全停止
     start
 }
