@@ -128,6 +128,21 @@ start() {
     init_config  # 确保配置完整
     replace_placeholders  # 替换所有占位符
 
+        # 添加 nftables 配置（确保 VRRP 协议通过）
+    cat <<EOF > /etc/nftables.conf
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy accept;
+        ct state established,related accept
+        iifname "lo" accept
+        ip protocol icmp accept
+        ip protocol 112 accept  # VRRP
+    }
+}
+EOF
+    nft -f /etc/nftables.conf
+    logger -t keepalived-ha "[HA] nftables 配置完成"
+    
     # 启动keepalived服务和监控脚本
     echo "Starting keepalived-ha service..."
     /etc/init.d/keepalived start  # 启动keepalived主服务
