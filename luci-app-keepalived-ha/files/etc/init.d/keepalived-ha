@@ -15,9 +15,9 @@ WATCHDOG_SCRIPT="/etc/keepalived/failover_watchdog.sh"
 check_files() {
     local missing=0
     [ -d "$TEMPLATE_DIR" ] || { echo "缺少模板目录: $TEMPLATE_DIR"; missing=1; }
-    [ -f "$VIP_UP_SCRIPT" ] || { echo "缺少脚本: $VIP_UP_SCRIPT"; missing=1; }
-    [ -f "$VIP_DOWN_SCRIPT" ] || { echo "缺少脚本: $VIP_DOWN_SCRIPT"; missing=1; }
-    [ -f "$TEMPLATE_DIR/failover_watchdog.sh.template" ] || { echo "缺少脚本: $TEMPLATE_DIR/failover_watchdog.sh.template"; missing=1; }
+    [ -f "$TEMPLATE_DIR/failover_watchdog.sh.template" ] || { echo "缺少模板: $TEMPLATE_DIR/failover_watchdog.sh.template"; missing=1; }
+    [ -f "$TEMPLATE_DIR/vip_up.sh.template" ] || { echo "缺少模板: $TEMPLATE_DIR/vip_up.sh.template"; missing=1; }
+    [ -f "$TEMPLATE_DIR/vip_down.sh.template" ] || { echo "缺少模板: $TEMPLATE_DIR/vip_down.sh.template"; missing=1; }
     [ "$missing" -eq 1 ] && exit 1
 }
 
@@ -124,14 +124,16 @@ replace_placeholders() {
         local TEMPLATE="$TEMPLATE_DIR/keepalived_peer.conf"
     fi
 
+    # 拷贝模板
+    cp "$TEMPLATE_DIR/failover_watchdog.sh.template" $WATCHDOG_SCRIPT
+    cp "$TEMPLATE_DIR/vip_up.sh.template" $VIP_UP_SCRIPT
+    cp "$TEMPLATE_DIR/vip_down.sh.template" $VIP_DOWN_SCRIPT
+
     # 替换VIP绑定/解绑脚本中的占位符
     sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
     logger -t keepalived-ha "已替换VIP脚本占位符"
 
     logger -t keepalived-ha "当前参数: VIP:$VIP;ROLE:$ROLE;INTERFACE:$INTERFACE; CHECK_IP:$CHECK_IP;FAIL_THRESHOLD:$FAIL_THRESHOLD;RECOVER_THRESHOLD:$RECOVER_THRESHOLD;CHECK_INTERVAL:$CHECK_INTERVAL;WATCHDOG_SCRIPT:$WATCHDOG_SCRIPT"
-
-    # 拷贝模板
-    cp "$TEMPLATE_DIR/failover_watchdog.sh.template" $WATCHDOG_SCRIPT
 
     # 替换监控脚本中的占位符
     sed -i "s|@VIP@|$VIP|g; s|@ROLE@|$ROLE|g; s|@INTERFACE@|$INTERFACE|g; s|@CHECK_IP@|$CHECK_IP|g; \
