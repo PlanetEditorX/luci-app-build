@@ -28,15 +28,8 @@ start() {
 
 # 停止服务
 stop() {
-    if [ -f "/var/run/$NAME.pid" ]; then
-        echo "Stopping $NAME..." >> "$LOG_FILE"
-        # 终止进程
-        kill $(cat "/var/run/$NAME.pid") >/dev/null 2>&1
-        rm -f "/var/run/$NAME.pid"
-        echo "$NAME stopped" >> "$LOG_FILE"
-    else
-        echo "$NAME is not running" >> "$LOG_FILE"
-    fi
+    pkill -f "/etc/keepalived/failover_watchdog.sh" >/dev/null 2>&1
+    echo "failover_watchdog监控服务已停止"
 }
 
 # 重启服务

@@ -134,6 +134,21 @@ if role_value == "peer" then
         translate("从路由优先级应高于主路由（建议100-150）"))
     priority_peer_option.datatype = "uinteger"
     priority_peer_option.default = "100"
+
+    local fail_threshold_option = main_section:option(Value, "fail_threshold", translate("故障转移阈值"))
+    fail_threshold_option.datatype = "range(1,10)"
+    fail_threshold_option.default = "3"
+    fail_threshold_option.description = translate("连续检测失败次数，达到此值触发转移（1-10）")
+
+    local recover_threshold_option = main_section:option(Value, "recover_threshold", translate("恢复阈值"))
+    recover_threshold_option.datatype = "range(1,10)"
+    recover_threshold_option.default = "2"
+    recover_threshold_option.description = translate("连续检测成功次数，达到此值恢复（1-10）")
+
+    local check_interval_option = main_section:option(Value, "check_interval", translate("检查间隔（秒）"))
+    check_interval_option.datatype = "range(2,60)"
+    check_interval_option.default = "5"
+    check_interval_option.description = translate("健康检查的时间间隔（2-60秒）")
 end
 
 -- 配置提交后的操作提示
