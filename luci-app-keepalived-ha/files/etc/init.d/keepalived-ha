@@ -147,7 +147,7 @@ replace_placeholders() {
     logger -t keepalived-ha "已生成keepalived配置文件: $KEEPALIVED_CONF"
 
     # 设置keepalived配置文件读取位置
-    sed -i 's/^KEEPALIVED_CONF=\/tmp\/keepalived\.conf$/KEEPALIVED_CONF=\/etc\/config\/keepalived\.conf/' /etc/init.d/keepalived
+    sed -i 's/^KEEPALIVED_CONF=\/tmp\/keepalived\.conf$/KEEPALIVED_CONF=\/etc\/keepalived\/keepalived\.conf/' /etc/init.d/keepalived
 }
 
 # 配置nftables允许VRRP协议（不覆盖现有规则）
