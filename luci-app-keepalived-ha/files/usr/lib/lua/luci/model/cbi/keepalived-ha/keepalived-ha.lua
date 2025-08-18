@@ -18,7 +18,7 @@ local role = s:option(ListValue, "role", translate("路由角色"))
 role:value("main", translate("主路由"))
 role:value("peer", translate("从路由"))
 role.default = "main"
-role.description = translate("从路由正常情况下持有VIP，主路由在从路由故障时接管<br/>切换路由角色后，需要保存并应用后才能生效")
+role.description = translate("从路由正常情况下持有VIP，主路由在从路由故障时接管<br/>切换路由角色后，需要先保存并应用后再修改其余参数")
 
 -- 公共配置
 local vip_option = s:option(Value, "vip", translate("虚拟IP（VIP）"))
