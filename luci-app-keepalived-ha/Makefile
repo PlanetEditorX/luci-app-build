@@ -44,7 +44,7 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
 	$(INSTALL_DATA) ./files/usr/lib/lua/luci/controller/keepalived-ha.lua $(1)/usr/lib/lua/luci/controller/
 
-	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi/keepalived-ha
 	$(INSTALL_DATA) ./files/usr/lib/lua/luci/model/cbi/keepalived-ha/keepalived-ha.lua $(1)/usr/lib/lua/luci/model/cbi/keepalived-ha/
 
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/keepalived-ha
