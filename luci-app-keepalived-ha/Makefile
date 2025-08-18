@@ -33,13 +33,13 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_BIN) ./files/etc/init.d/keepalived-ha $(1)/etc/init.d/keepalived-ha
 
 	$(INSTALL_DIR) $(1)/etc/keepalived
-	$(INSTALL_BIN) ./files/etc/keepalived/failover_watchdog.sh $(1)/etc/keepalived/
 	$(INSTALL_BIN) ./files/etc/keepalived/vip_up.sh $(1)/etc/keepalived/
 	$(INSTALL_BIN) ./files/etc/keepalived/vip_down.sh $(1)/etc/keepalived/
 
 	$(INSTALL_DIR) $(1)/etc/keepalived/template
 	$(INSTALL_DATA) ./files/etc/keepalived/template/keepalived_main.conf $(1)/etc/keepalived/template/
 	$(INSTALL_DATA) ./files/etc/keepalived/template/keepalived_peer.conf $(1)/etc/keepalived/template/
+	$(INSTALL_DATA) ./files/etc/keepalived/template/failover_watchdog.sh.template $(1)/etc/keepalived/template/
 
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/controller
 	$(INSTALL_DATA) ./files/usr/lib/lua/luci/controller/keepalived-ha.lua $(1)/usr/lib/lua/luci/controller/

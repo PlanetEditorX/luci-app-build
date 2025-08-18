@@ -128,6 +128,11 @@ replace_placeholders() {
     # sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
     # logger -t keepalived-ha "已替换VIP脚本占位符"
 
+    logger -t keepalived-ha "当前参数: VIP:$VIP;ROLE:$ROLE;INTERFACE:$INTERFACE; CHECK_IP:$CHECK_IP;FAIL_THRESHOLD:$FAIL_THRESHOLD;RECOVER_THRESHOLD:$RECOVER_THRESHOLD;CHECK_INTERVAL:$CHECK_INTERVAL;WATCHDOG_SCRIPT:$WATCHDOG_SCRIPT"
+
+    # 拷贝模板
+    cp "$TEMPLATE_DIR/failover_watchdog.sh.template" $WATCHDOG_SCRIPT
+    
     # 替换监控脚本中的占位符
     sed -i "s|@VIP@|$VIP|g; s|@ROLE@|$ROLE|g; s|@INTERFACE@|$INTERFACE|g; s|@CHECK_IP@|$CHECK_IP|g; \
             s|@FAIL_THRESHOLD@|$FAIL_THRESHOLD|g; s|@RECOVER_THRESHOLD@|$RECOVER_THRESHOLD|g; \
@@ -199,6 +204,6 @@ stop() {
 
 restart() {
     stop
-    sleep 10  # 等待进程完全停止
+    sleep 5  # 等待进程完全停止
     start
 }
