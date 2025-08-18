@@ -1,9 +1,21 @@
--- 引入所需模块
+-- 引入所需模块（简化，仅保留必要模块）
 local NamedSection = require("luci.cbi").NamedSection
 local TypedSection = require("luci.cbi").TypedSection
 local SimpleSection = require("luci.cbi").SimpleSection
 local uci = require("luci.model.uci").cursor()
-local util = require("luci.util")
+
+-- ########## 核心修复：替换htmlescape（避免nil报错）##########
+-- 自定义简单转义函数（替代util.htmlescape，兼容所有LuCI版本）
+local function html_escape(str)
+    if not str then return "" end
+    str = tostring(str)
+    str = str:gsub("&", "&amp;")
+    str = str:gsub("<", "&lt;")
+    str = str:gsub(">", "&gt;")
+    str = str:gsub('"', "&quot;")
+    str = str:gsub("'", "&#39;")
+    return str
+end
 
 m = Map("keepalived-ha",
     translate("Keepalived 高可用"),
@@ -39,7 +51,7 @@ end
 local general_sec = m:section(NamedSection, "general", "general", translate("基本设置"))
 general_sec.anonymous = false
 
--- ########## 3. 路由角色选择（核心修复：替换self:name()）##########
+-- ########## 3. 路由角色选择（彻底修复所有依赖）##########
 local role = general_sec:option(ListValue, "role", translate("路由角色"))
 role:value("main", translate("主路由"))
 role:value("peer", translate("备路由"))
@@ -48,42 +60,41 @@ role.rmempty = false
 role.description = translate("主路由正常情况下持有VIP，备路由在主路由故障时接管")
 
 function role:render()
-    -- 核心修复：用self.option获取字段名（替代self:name()）
-    local input_name = self.option  -- LuCI控件的字段名存储在self.option中
-    local fixed_id = "role-select"
-    -- 核心修复：用self.map:get获取当前值（替代self:cfgvalue()，避免上下文依赖）
-    local current_val = self.map:get("general", "role") or self.default or "main"
+    -- 1. 获取字段名和当前值（无任何方法依赖）
+    local input_name = self.option  -- 字段名（role）
+    local fixed_id = "role-select"  -- 固定ID
+    local current_val = self.map:get("general", "role") or self.default or "main"  -- 当前值
 
-    -- 生成下拉框HTML
+    -- 2. 生成下拉框HTML（用自定义html_escape转义）
     local html = string.format(
         '<select name="%s" id="%s" class="cbi-input-select" onchange="return confirmRoleChange(this)">',
-        util.htmlescape(input_name), fixed_id
+        html_escape(input_name), fixed_id  -- 仅转义动态值
     )
 
-    -- 添加选项
+    -- 3. 添加选项（遍历options，转义值和文本）
     for _, opt in ipairs(self.options) do
         local val = opt[1]
         local txt = opt[2]
         local selected = (val == current_val) and ' selected="selected"' or ""
         html = html .. string.format(
             '<option value="%s"%s>%s</option>',
-            util.htmlescape(val), selected, util.htmlescape(txt)
+            html_escape(val), selected, html_escape(txt)
         )
     end
 
-    -- 添加描述
+    -- 4. 添加描述文本
     html = html .. '</select>'
     if self.description then
         html = html .. string.format(
             '<br /><span class="cbi-section-descr">%s</span>',
-            util.htmlescape(self.description)
+            html_escape(self.description)
         )
     end
 
     return html
 end
 
--- ########## 4. 公共配置（无修改，仅确保父section正确）##########
+-- ########## 4. 公共配置（无修改，仅确保无额外依赖）##########
 local vip_option = general_sec:option(Value, "vip", translate("虚拟IP（VIP）"))
 vip_option.datatype = "ip4addr"
 vip_option.default = "192.168.1.5"
