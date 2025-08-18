@@ -78,6 +78,8 @@ vrid_option.default = "51"
 local control_openclash = s:option(Flag, "control_openclash", translate("自动控制OpenClash"),
     translate("故障转移时自动启停OpenClash"))
 control_openclash.default = "1"
+-- 绑定依赖：仅当角色为"main"（主路由）时显示
+control_openclash:depends("role", "main")
 
 
 -- 根据UCI配置中'role'的值来决定显示哪个配置节
