@@ -120,9 +120,9 @@ end
 
 if role_value == "peer" then
     -- 从路由配置段
-    peer_section = m:section(NamedSection, "peer", "peer", translate("从路由设置"))  -- 命名为'peer'，确保唯一
-    peer_section.anonymous = false  -- 禁用匿名
-    peer_section.addremove = false  -- 禁止添加/删除
+    local peer_section = m:section(NamedSection, "peer", "peer", translate("从路由设置"))
+    peer_section.anonymous = false
+    peer_section.addremove = false
     peer_section.description = translate("仅当角色为'从路由'时生效的配置参数")
 
     local main_ip_option = peer_section:option(Value, "main_ip", translate("主路由IP地址"))
@@ -135,17 +135,18 @@ if role_value == "peer" then
     priority_peer_option.datatype = "uinteger"
     priority_peer_option.default = "100"
 
-    local fail_threshold_option = main_section:option(Value, "fail_threshold", translate("故障转移阈值"))
+    -- 修复：将健康检查选项绑定到 peer_section（原代码错误使用 main_section）
+    local fail_threshold_option = peer_section:option(Value, "fail_threshold", translate("故障转移阈值"))
     fail_threshold_option.datatype = "range(1,10)"
     fail_threshold_option.default = "3"
     fail_threshold_option.description = translate("连续检测失败次数，达到此值触发转移（1-10）")
 
-    local recover_threshold_option = main_section:option(Value, "recover_threshold", translate("恢复阈值"))
+    local recover_threshold_option = peer_section:option(Value, "recover_threshold", translate("恢复阈值"))
     recover_threshold_option.datatype = "range(1,10)"
     recover_threshold_option.default = "2"
     recover_threshold_option.description = translate("连续检测成功次数，达到此值恢复（1-10）")
 
-    local check_interval_option = main_section:option(Value, "check_interval", translate("检查间隔（秒）"))
+    local check_interval_option = peer_section:option(Value, "check_interval", translate("检查间隔（秒）"))
     check_interval_option.datatype = "range(2,60)"
     check_interval_option.default = "5"
     check_interval_option.description = translate("健康检查的时间间隔（2-60秒）")
