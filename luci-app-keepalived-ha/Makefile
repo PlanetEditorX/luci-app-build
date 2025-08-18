@@ -33,6 +33,9 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_BIN) ./files/etc/init.d/failover_watchdog $(1)/etc/init.d/failover_watchdog
 	$(INSTALL_BIN) ./files/etc/init.d/keepalived-ha $(1)/etc/init.d/keepalived-ha
 
+	$(INSTALL_DIR) $(1)/etc/keepalived
+	$(INSTALL_DATA) ./files/etc/keepalived/keepalived-ha-debug.sh $(1)/etc/keepalived/
+
 	$(INSTALL_DIR) $(1)/etc/keepalived/template
 	$(INSTALL_DATA) ./files/etc/keepalived/template/keepalived_main.conf $(1)/etc/keepalived/template/
 	$(INSTALL_DATA) ./files/etc/keepalived/template/keepalived_peer.conf $(1)/etc/keepalived/template/
