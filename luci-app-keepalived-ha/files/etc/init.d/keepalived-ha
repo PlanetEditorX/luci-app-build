@@ -209,10 +209,12 @@ stop() {
     echo "Stopping keepalived-ha service..."
     /etc/init.d/keepalived stop >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已停止"
     pkill -f "failover_watchdog.sh" >/dev/null 2>&1 && logger -t keepalived-ha "监控脚本已停止"
+    logger -t keepalived-ha "删除临时配置文件$KEEPALIVED_CONF_DST"
+    rm -rf $KEEPALIVED_CONF_DST
 }
 
 restart() {
     stop
-    sleep 2  # 等待进程完全停止
+    sleep 10  # 等待进程完全停止
     start
 }
