@@ -125,8 +125,8 @@ replace_placeholders() {
     fi
 
     # 替换VIP绑定/解绑脚本中的占位符
-    # sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
-    # logger -t keepalived-ha "已替换VIP脚本占位符"
+    sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
+    logger -t keepalived-ha "已替换VIP脚本占位符"
 
     logger -t keepalived-ha "当前参数: VIP:$VIP;ROLE:$ROLE;INTERFACE:$INTERFACE; CHECK_IP:$CHECK_IP;FAIL_THRESHOLD:$FAIL_THRESHOLD;RECOVER_THRESHOLD:$RECOVER_THRESHOLD;CHECK_INTERVAL:$CHECK_INTERVAL;WATCHDOG_SCRIPT:$WATCHDOG_SCRIPT"
 
@@ -139,7 +139,7 @@ replace_placeholders() {
             s|@CHECK_INTERVAL@|$CHECK_INTERVAL|g" "$WATCHDOG_SCRIPT"
     logger -t keepalived-ha "已替换监控脚本占位符"
 
-    # 生成keepalived主配置文件（从模板替换）
+    # 生成keepalived主配置文件
     sed "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@VRID@|$VRID|g; \
         s|@PRIORITY@|$PRIORITY|g; s|@PREEMPT@|$PREEMPT|g" "$TEMPLATE" > "$KEEPALIVED_CONF"
     logger -t keepalived-ha "已生成keepalived配置文件: $KEEPALIVED_CONF"
