@@ -1,3 +1,3 @@
 #!/bin/sh
-logger -t keepalived-ha "VIP @VIP@ 已解绑，回退主路由"
+logger -t keepalived-ha "VIP @VIP@ 已解绑"
 ip addr del @VIP@/24 dev @INTERFACE@

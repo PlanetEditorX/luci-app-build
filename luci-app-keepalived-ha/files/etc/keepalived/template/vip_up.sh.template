@@ -1,4 +1,4 @@
 #!/bin/sh
-logger -t keepalived-ha"触发 vip_up.sh，准备绑定 VIP"
+logger -t keepalived-ha "触发 vip_up.sh，准备绑定 VIP"
 ip addr add @VIP@/24 dev @INTERFACE@
 logger -t keepalived-ha "VIP @VIP 已绑定"
