@@ -3,6 +3,7 @@ local NamedSection = require("luci.cbi").NamedSection
 local TypedSection = require("luci.cbi").TypedSection
 local SimpleSection = require("luci.cbi").SimpleSection
 local uci = require("luci.model.uci").cursor()
+local util = require("luci.util")
 
 m = Map("keepalived-ha",
     translate("Keepalived 高可用"),
@@ -17,15 +18,42 @@ s.template = "keepalived-ha/role_confirm"
 s = m:section(NamedSection, "general", "general", translate("基本设置"))
 s.anonymous = false
 
--- 路由角色选择 - 添加onchange事件
+-- 路由角色选择 - 修复onchange事件绑定方式
 local role = s:option(ListValue, "role", translate("路由角色"))
 role:value("main", translate("主路由"))
 role:value("peer", translate("备路由"))
 role.default = "main"
 role.rmempty = false
 role.description = translate("主路由正常情况下持有VIP，备路由在主路由故障时接管")
--- 添加onchange事件触发确认对话框
-role:attr("onchange", "return confirmRoleChange(this)")
+
+-- 修复：使用render方法添加onchange属性（更适合ListValue）
+function role:render()
+    local id = self:cbid()
+    local name = self:name()
+    local current_value = self:cfgvalue() or self.default or ""
+
+    -- 构建select元素，添加onchange事件
+    local html = string.format('<select name="%s" id="%s" class="cbi-input-select" onchange="return confirmRoleChange(this)">',
+        util.htmlescape(name), util.htmlescape(id))
+
+    -- 添加选项
+    for _, option in ipairs(self.options) do
+        local val, txt = option[1], option[2]
+        local selected = (val == current_value) and ' selected="selected"' or ""
+        html = html .. string.format('<option value="%s"%s>%s</option>',
+            util.htmlescape(val), selected, util.htmlescape(txt))
+    end
+
+    html = html .. '</select>'
+
+    -- 添加描述信息
+    if self.description then
+        html = html .. string.format('<br /><span class="cbi-section-descr">%s</span>',
+            util.htmlescape(self.description))
+    end
+
+    return html
+end
 
 -- 公共配置
 local vip_option = s:option(Value, "vip", translate("虚拟IP（VIP）"))
