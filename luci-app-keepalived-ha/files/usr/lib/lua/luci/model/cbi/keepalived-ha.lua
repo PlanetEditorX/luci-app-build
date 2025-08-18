@@ -10,15 +10,39 @@ m = Map("keepalived-ha",
     translate("双路由虚拟IP（VIP）故障转移解决方案，支持主备路由自动切换。配置前请确保主备路由网络互通。")
 )
 
--- 添加角色切换确认的JavaScript
-s = m:section(SimpleSection)
-s.template = "keepalived-ha/role_confirm"
+-- ########## 关键修改：直接嵌入JavaScript（无需模板文件）##########
+local js_section = m:section(SimpleSection)
+function js_section:render()
+    return [[
+    <script type="text/javascript">
+        // 角色切换确认+自动保存
+        function confirmRoleChange(select) {
+            const newRole = select.options[select.selectedIndex].text;
+            if (confirm('确定切换为【' + newRole + '】吗？切换后自动保存配置！')) {
+                // 找到LuCI默认配置表单并提交
+                const form = document.querySelector('form[method="post"]');
+                if (form) form.submit();
+                return true;
+            } else {
+                // 取消时恢复原选择
+                select.value = select.getAttribute('data-orig');
+                return false;
+            }
+        }
+        // 页面加载时记录初始角色值
+        window.onload = function() {
+            const roleSel = document.querySelector('select[name*="role"]');
+            if (roleSel) roleSel.setAttribute('data-orig', roleSel.value);
+        };
+    </script>
+    ]]
+end
 
--- 基础设置段 (这是您的命名节'general')
+-- 基础设置段 (命名节'general')
 s = m:section(NamedSection, "general", "general", translate("基本设置"))
 s.anonymous = false
 
--- 路由角色选择 - 修复onchange事件绑定方式
+-- 路由角色选择（带onchange事件）
 local role = s:option(ListValue, "role", translate("路由角色"))
 role:value("main", translate("主路由"))
 role:value("peer", translate("备路由"))
@@ -26,36 +50,41 @@ role.default = "main"
 role.rmempty = false
 role.description = translate("主路由正常情况下持有VIP，备路由在主路由故障时接管")
 
--- 修复：使用render方法添加onchange属性（更适合ListValue）
+-- ########## 修复：正确渲染带onchange的下拉框 ##########
 function role:render()
     local id = self:cbid()
     local name = self:name()
-    local current_value = self:cfgvalue() or self.default or ""
+    local curr_val = self:cfgvalue() or self.default or ""
 
-    -- 构建select元素，添加onchange事件
-    local html = string.format('<select name="%s" id="%s" class="cbi-input-select" onchange="return confirmRoleChange(this)">',
-        util.htmlescape(name), util.htmlescape(id))
+    -- 生成带onchange事件的select标签
+    local html = string.format(
+        '<select name="%s" id="%s" class="cbi-input-select" onchange="return confirmRoleChange(this)">',
+        util.htmlescape(name), util.htmlescape(id)
+    )
 
     -- 添加选项
-    for _, option in ipairs(self.options) do
-        local val, txt = option[1], option[2]
-        local selected = (val == current_value) and ' selected="selected"' or ""
-        html = html .. string.format('<option value="%s"%s>%s</option>',
-            util.htmlescape(val), selected, util.htmlescape(txt))
+    for _, opt in ipairs(self.options) do
+        local val, txt = opt[1], opt[2]
+        local selected = (val == curr_val) and ' selected' or ''
+        html = html .. string.format(
+            '<option value="%s"%s>%s</option>',
+            util.htmlescape(val), selected, util.htmlescape(txt)
+        )
     end
 
+    -- 添加描述
     html = html .. '</select>'
-
-    -- 添加描述信息
     if self.description then
-        html = html .. string.format('<br /><span class="cbi-section-descr">%s</span>',
-            util.htmlescape(self.description))
+        html = html .. string.format(
+            '<br /><span class="cbi-section-descr">%s</span>',
+            util.htmlescape(self.description)
+        )
     end
 
     return html
 end
 
--- 公共配置
+-- ########## 以下为原公共配置（无需修改）##########
 local vip_option = s:option(Value, "vip", translate("虚拟IP（VIP）"))
 vip_option.datatype = "ip4addr"
 vip_option.default = "192.168.1.5"
@@ -114,10 +143,8 @@ local control_openclash = s:option(Flag, "control_openclash", translate("自动�
     translate("故障转移时自动启停OpenClash"))
 control_openclash.default = "1"
 
-
--- 根据UCI配置中'role'的值来决定显示哪个配置节
+-- 根据角色显示对应配置段
 local role_value = uci:get("keepalived-ha", "general", "role") or "main"
-
 if role_value == "main" then
     -- 主路由配置段
     main_section = m:section(TypedSection, "main", translate("主路由设置"))
@@ -169,7 +196,7 @@ if role_value == "peer" then
     priority_peer_option.default = "100"
 end
 
--- 配置提交后的操作提示
+-- 配置提交后重启服务
 function m.on_after_commit(self)
     luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
     luci.util.perror(translate("配置已保存，服务已自动重启"))
