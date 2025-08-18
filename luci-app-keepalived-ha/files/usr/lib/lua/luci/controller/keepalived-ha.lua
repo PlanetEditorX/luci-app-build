@@ -1,7 +1,7 @@
 module("luci.controller.keepalived-ha", package.seeall)
 
 function index()
-    entry({"admin", "services", "keepalived-ha"}, cbi("keepalived-ha"), "Keepalived HA", 60)
+    entry({"admin", "services", "keepalived-ha"}, cbi("keepalived-ha/keepalived-ha"), "Keepalived HA", 60)
     entry({"admin", "services", "keepalived-ha", "status"}, call("action_status")).leaf = true
 end
 
