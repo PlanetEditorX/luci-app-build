@@ -138,8 +138,23 @@ replace_placeholders() {
     sed "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@VRID@|$VRID|g; \
         s|@PRIORITY@|$PRIORITY|g; s|@PREEMPT@|$PREEMPT|g" "$TEMPLATE" > "$KEEPALIVED_CONF"
     logger -t keepalived-ha "已生成keepalived配置文件: $KEEPALIVED_CONF"
-    cp "$KEEPALIVED_CONF" "$KEEPALIVED_CONF_DST"
-    logger -t keepalived-ha "配置文件已复制到: $KEEPALIVED_CONF_DST"
+
+    # 复制配置文件并校验
+    if cp "$KEEPALIVED_CONF" "$KEEPALIVED_CONF_DST"; then
+        # 输出目标文件内容（关键信息）
+        logger -t keepalived-ha "配置文件已复制到: $KEEPALIVED_CONF_DST"
+        logger -t keepalived-ha "目标文件关键内容: $(grep -E 'virtual_ipaddress|interface|priority' "$KEEPALIVED_CONF_DST" | tr '\n' '; ')"
+
+        # 校验内容一致性
+        if diff "$KEEPALIVED_CONF" "$KEEPALIVED_CONF_DST" >/dev/null; then
+            logger -t keepalived-ha "配置文件复制成功，内容一致"
+        else
+            logger -t keepalived-ha "警告: 源文件与目标文件内容不一致"
+        fi
+    else
+        logger -t keepalived-ha "错误: 配置文件复制失败"
+        exit 1  # 复制失败时终止执行
+    fi
 }
 
 # 配置nftables允许VRRP协议（不覆盖现有规则）
