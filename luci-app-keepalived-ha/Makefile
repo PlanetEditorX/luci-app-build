@@ -30,6 +30,7 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_CONF) ./files/etc/config/keepalived-ha $(1)/etc/config/keepalived-ha
 
 	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/etc/init.d/failover_watchdog $(1)/etc/init.d/failover_watchdog
 	$(INSTALL_BIN) ./files/etc/init.d/keepalived-ha $(1)/etc/init.d/keepalived-ha
 
 	$(INSTALL_DIR) $(1)/etc/keepalived
@@ -57,6 +58,8 @@ define Package/$(PKG_NAME)/postinst
 [ -n "$${IPKG_INSTROOT}" ] || {
 	/etc/init.d/keepalived-ha enable
 	echo "Keepalived HA 服务已自动启用开机启动"
+	/etc/init.d/failover_watchdog enable
+	echo "Failover Watchdog 服务已自动启用开机启动"
 }
 exit 0
 endef
