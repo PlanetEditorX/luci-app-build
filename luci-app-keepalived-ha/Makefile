@@ -13,7 +13,7 @@ define Package/$(PKG_NAME)
 	CATEGORY:=LuCI
 	SUBMENU:=9. Services
 	TITLE:=Keepalived High Availability
-	DEPENDS:=+keepalived +nftables +ip-full
+	DEPENDS:=+keepalived +nftables +ip-full +procps-ng-pkill
 	PKGARCH:=all
 endef
 
