@@ -9,7 +9,7 @@ m = Map("keepalived-ha",
     translate("双路由虚拟IP（VIP）故障转移解决方案，支持主从路由自动切换。配置前请确保主从路由网络互通。")
 )
 
--- 基础设置段 (这是您的命名节'general')
+-- 基础设置段
 s = m:section(NamedSection, "general", "general", translate("基本设置"))
 s.anonymous = false
 
@@ -37,23 +37,23 @@ for _, iface in ipairs(luci.sys.net.devices()) do
     end
 end
 
--- 健康检查方式
-local check_method = s:option(ListValue, "check_method", translate("健康检查方式"))
-check_method:value("ping", translate("ICMP Ping"))
-check_method:value("tcp", translate("TCP 端口"))
-check_method:value("http", translate("HTTP 请求"))
-check_method.default = "ping"
+-- -- 健康检查方式
+-- local check_method = s:option(ListValue, "check_method", translate("健康检查方式"))
+-- check_method:value("ping", translate("ICMP Ping"))
+-- check_method:value("tcp", translate("TCP 端口"))
+-- check_method:value("http", translate("HTTP 请求"))
+-- check_method.default = "ping"
 
--- TCP检查端口（依赖检查方式）
-local tcp_port = s:option(Value, "tcp_port", translate("TCP 检查端口"))
-tcp_port.datatype = "port"
-tcp_port.default = "80"
-tcp_port:depends("check_method", "tcp")
+-- -- TCP检查端口（依赖检查方式）
+-- local tcp_port = s:option(Value, "tcp_port", translate("TCP 检查端口"))
+-- tcp_port.datatype = "port"
+-- tcp_port.default = "80"
+-- tcp_port:depends("check_method", "tcp")
 
--- HTTP检查URL（依赖检查方式）
-local http_url = s:option(Value, "http_url", translate("HTTP 检查URL"))
-http_url.default = "http://192.168.1.1/"
-http_url:depends("check_method", "http")
+-- -- HTTP检查URL（依赖检查方式）
+-- local http_url = s:option(Value, "http_url", translate("HTTP 检查URL"))
+-- http_url.default = "http://192.168.1.1/"
+-- http_url:depends("check_method", "http")
 
 -- VRID配置（虚拟路由标识）
 local vrid_option = s:option(Value, "vrid", translate("VRID 标识"),

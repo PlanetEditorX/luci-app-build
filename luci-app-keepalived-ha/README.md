@@ -1,10 +1,10 @@
 # LuCI App: Keepalived HA
 
-用于 OpenWrt/ImmortalWrt 的主路由高可用漂移控制，支持旁路由故障检测、VIP 接管、OpenClash 控制等。
+用于 OpenWrt/ImmortalWrt 的主路由高可用漂移控制，支持从路由故障检测、VIP 接管、OpenClash 控制等。
 
 ## 功能
 - 支持 VRRP 虚拟 IP 漂移
-- 支持旁路由健康检测（ping）
+- 支持从路由健康检测（ping）
 - 故障自动接管 VIP
 - 恢复自动释放 VIP
 - 控制 OpenClash 启停
@@ -32,11 +32,11 @@ package/luci-app-keepalived-ha/
     │   │   └── keepalived-ha
     │   └── keepalived/           # 核心脚本目录
     │       ├── failover_watchdog.sh  # 主路由监控脚本
-    │       ├── vip_up.sh             # 旁路由VIP绑定脚本
-    │       ├── vip_down.sh           # 旁路由VIP解绑脚本
+    │       ├── vip_up.sh             # 从路由VIP绑定脚本
+    │       ├── vip_down.sh           # 从路由VIP解绑脚本
     │       └── template/             # 配置模板
     │           ├── keepalived_main.conf  # 主路由keepalived模板
-    │           └── keepalived_peer.conf  # 旁路由keepalived模板
+    │           └── keepalived_peer.conf  # 从路由keepalived模板
     └── usr/
         └── lib/
             └── lua/

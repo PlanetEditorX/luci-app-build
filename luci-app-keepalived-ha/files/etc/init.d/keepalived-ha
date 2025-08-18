@@ -108,14 +108,14 @@ replace_placeholders() {
 
     # 根据角色读取对应参数
     if [ "$ROLE" = "main" ]; then
-        local PEER_IP=$(uci get keepalived-ha.main.peer_ip)
+        local CHECK_IP=$(uci get keepalived-ha.main.peer_ip)
         local PRIORITY=$(uci get keepalived-ha.main.priority)
         local FAIL_THRESHOLD=$(uci get keepalived-ha.main.fail_threshold)
         local RECOVER_THRESHOLD=$(uci get keepalived-ha.main.recover_threshold)
         local CHECK_INTERVAL=$(uci get keepalived-ha.main.check_interval)
         local TEMPLATE="$TEMPLATE_DIR/keepalived_main.conf"
     else
-        local PEER_IP=$(uci get keepalived-ha.peer.main_ip)
+        local CHECK_IP=$(uci get keepalived-ha.peer.main_ip)
         local PRIORITY=$(uci get keepalived-ha.peer.priority)
         # 从路由建议使用自己的阈值配置，避免依赖主路由
         local FAIL_THRESHOLD=$(uci get keepalived-ha.main.fail_threshold 2>/dev/null || echo 3)
@@ -125,11 +125,11 @@ replace_placeholders() {
     fi
 
     # 替换VIP绑定/解绑脚本中的占位符
-    sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
-    logger -t keepalived-ha "已替换VIP脚本占位符"
+    # sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
+    # logger -t keepalived-ha "已替换VIP脚本占位符"
 
     # 替换监控脚本中的占位符
-    sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@PEER_IP@|$PEER_IP|g; \
+    sed -i "s|@VIP@|$VIP|g; s|@ROLE@|$ROLE|g; s|@INTERFACE@|$INTERFACE|g; s|@CHECK_IP@|$CHECK_IP|g; \
             s|@FAIL_THRESHOLD@|$FAIL_THRESHOLD|g; s|@RECOVER_THRESHOLD@|$RECOVER_THRESHOLD|g; \
             s|@CHECK_INTERVAL@|$CHECK_INTERVAL|g" "$WATCHDOG_SCRIPT"
     logger -t keepalived-ha "已替换监控脚本占位符"
