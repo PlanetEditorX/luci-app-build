@@ -203,6 +203,11 @@ start() {
 
     echo "Starting failover_watchdog service..."
     /etc/init.d/failover_watchdog start >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog监控服务已启动" || logger -t keepalived-ha "failover_watchdog监控服务启动失败"
+
+    echo "Starting keepalived-ha Test..."
+    /etc/keepalived/keepalived-ha-debug.sh  >/dev/null 2>&1 && \
+    logger -t keepalived-ha "keepalived测试完成" || \
+    logger -t keepalived-ha "keepalived测试失败"
 }
 
 stop() {
