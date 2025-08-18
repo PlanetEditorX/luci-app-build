@@ -51,4 +51,14 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DATA) ./files/usr/lib/lua/luci/view/keepalived-ha/status.htm $(1)/usr/lib/lua/luci/view/keepalived-ha/
 endef
 
+# 定义安装后脚本（自动启用服务）
+define Package/$(PKG_NAME)/postinst
+#!/bin/sh
+[ -n "$${IPKG_INSTROOT}" ] || {
+	/etc/init.d/keepalived-ha enable
+	echo "Keepalived HA 服务已自动启用开机启动"
+}
+exit 0
+endef
+
 $(eval $(call BuildPackage,$(PKG_NAME)))
