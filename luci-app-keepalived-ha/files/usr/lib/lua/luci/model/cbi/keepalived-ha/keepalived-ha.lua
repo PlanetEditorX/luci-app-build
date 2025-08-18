@@ -87,10 +87,9 @@ local role_value = luci.http.formvalue("cbid.keepalived-ha.general.role") or uci
 
 if role_value == "main" then
     -- 主路由配置段
-    -- 这是一个类型为'main'的匿名节
-    main_section = m:section(TypedSection, "main", translate("主路由设置"))
-    main_section.anonymous = true
-    main_section.addremove = false
+    main_section = m:section(NamedSection, "main", "main", translate("主路由设置"))  -- 命名为'main'，确保唯一
+    main_section.anonymous = false  -- 禁用匿名
+    main_section.addremove = false  -- 禁止添加/删除
     main_section.description = translate("仅当角色为'主路由'时生效的配置参数")
 
     local peer_ip_option = main_section:option(Value, "peer_ip", translate("从路由IP地址"))
@@ -121,9 +120,9 @@ end
 
 if role_value == "peer" then
     -- 从路由配置段
-    peer_section = m:section(TypedSection, "peer", translate("从路由设置"))
-    peer_section.anonymous = true
-    peer_section.addremove = false
+    peer_section = m:section(NamedSection, "peer", "peer", translate("从路由设置"))  -- 命名为'peer'，确保唯一
+    peer_section.anonymous = false  -- 禁用匿名
+    peer_section.addremove = false  -- 禁止添加/删除
     peer_section.description = translate("仅当角色为'从路由'时生效的配置参数")
 
     local main_ip_option = peer_section:option(Value, "main_ip", translate("主路由IP地址"))
@@ -139,6 +138,17 @@ end
 
 -- 配置提交后的操作提示
 function m.on_after_commit(self)
+    local role = uci:get("keepalived-ha", "general", "role") or "main"
+
+    -- 若角色是主路由，删除peer段；若是从路由，删除main段
+    if role == "main" then
+        uci:delete("keepalived-ha", "peer")  -- 删除peer段
+    else
+        uci:delete("keepalived-ha", "main")  -- 删除main段
+    end
+    uci:commit("keepalived-ha")  -- 提交删除操作
+
+    -- 重启服务
     luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
     luci.util.perror(translate("配置已保存，服务已自动重启"))
 end
