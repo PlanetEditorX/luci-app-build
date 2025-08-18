@@ -1,0 +1,36 @@
+<script type="text/javascript">
+    function confirmRoleChange(selectElement) {
+        // 获取当前选择的角色
+        var newRole = selectElement.options[selectElement.selectedIndex].text;
+
+        // 显示确认对话框
+        if (confirm('确定要切换为' + newRole + '吗？切换后将自动保存配置并刷新页面。')) {
+            // 找到表单并提交
+            var form = selectElement.closest('form');
+            if (form) {
+                // 提交前设置一个临时标志，用于区分是角色切换还是普通保存
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'role_change';
+                input.value = '1';
+                form.appendChild(input);
+
+                form.submit();
+            }
+            return true;
+        } else {
+            // 取消选择，恢复原来的值
+            var originalValue = selectElement.getAttribute('data-original-value');
+            selectElement.value = originalValue;
+            return false;
+        }
+    }
+
+    // 页面加载时保存原始值
+    window.addEventListener('load', function() {
+        var roleSelect = document.querySelector('select[name="cbid.keepalived-ha.general.role"]');
+        if (roleSelect) {
+            roleSelect.setAttribute('data-original-value', roleSelect.value);
+        }
+    });
+    </script>
