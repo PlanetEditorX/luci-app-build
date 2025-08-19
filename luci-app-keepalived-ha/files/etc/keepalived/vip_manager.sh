@@ -4,7 +4,7 @@
 VIP="$1"           # 第一个参数：VIP地址
 IFACE="$2"         # 第二个参数：绑定接口
 ACTION="$3"        # 第三个参数：操作类型 bind/unbind/status
-LOGTAG="keepalived-ha"
+LOGTAG="keepalived-ha-vip_manager"
 
 # 校验参数
 [ -z "$VIP" ] || [ -z "$IFACE" ] || [ -z "$ACTION" ] && {

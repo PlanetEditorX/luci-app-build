@@ -37,7 +37,7 @@ while true; do
 
             if ip -4 addr show "$INTERFACE" | grep -q "$VIP" && [ "$RECOVER_COUNT" -ge "$RECOVER_THRESHOLD" ]; then
                 log "[Watchdog] $CHECK_NAME 恢复，解绑 VIP $VIP"
-                ip addr del "$VIP/32" dev "$INTERFACE"
+                ip addr del "$VIP/24" dev "$INTERFACE"
                 RECOVER_COUNT=0
                 log "[Watchdog] 关闭主路由openclash"
                 /etc/init.d/openclash stop
@@ -51,7 +51,7 @@ while true; do
 
             if ! ip -4 addr show "$INTERFACE" | grep -q "$VIP" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
                 log "[Watchdog] 接管 VIP $VIP"
-                ip addr add "$VIP/32" dev "$INTERFACE"
+                ip addr add "$VIP/24" dev "$INTERFACE"
                 FAIL_COUNT=0
                 log "[Watchdog] 启动主路由openclash"
                 uci set openclash.config.enable='1'
