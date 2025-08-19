@@ -1,3 +1,0 @@
-#!/bin/sh
-logger -t keepalived-ha "VIP @VIP@ 已解绑"
-ip addr del @VIP@/24 dev @INTERFACE@
