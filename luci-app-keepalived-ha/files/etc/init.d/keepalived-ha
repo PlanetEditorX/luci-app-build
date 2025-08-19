@@ -186,9 +186,9 @@ remove_vip() {
     else
         logger -t keepalived-ha "无法执行 $VIP_DOWN_SCRIPT：权限不足或文件不存在"
     fi
-    /etc/init.d/network restart >/dev/null 2>&1 && \
-    logger -t keepalived-ha "重启网络" || \
-    logger -t keepalived-ha "重启网络失败"
+    # /etc/init.d/network restart >/dev/null 2>&1 && \
+    # logger -t keepalived-ha "重启网络" || \
+    # logger -t keepalived-ha "重启网络失败"
 }
 
 start() {
@@ -217,12 +217,13 @@ stop() {
     # 停止服务和脚本
     echo "Stopping keepalived-ha service..."
     /etc/init.d/keepalived stop >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已停止"
+    pkill -f keepalived  >/dev/null 2>&1 && logger -t keepalived-ha "keepalived相关所有服务已停止"
     /etc/init.d/failover_watchdog stop >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog监控服务已停止"
 }
 
 restart() {
-    stop
     remove_vip
-    sleep 10  # 等待进程完全停止
+    stop
+    sleep 5  # 等待进程完全停止
     start
 }
