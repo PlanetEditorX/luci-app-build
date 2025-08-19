@@ -28,9 +28,6 @@ case "$ACTION" in
         ;;
     unbind)
         MATCHES=$(ip -o -f inet addr show dev "$IFACE" | awk '{print $4}' | grep "^$VIP/")
-        log "当前的IP信息1：$(ip -o -f inet addr show dev "$IFACE")"
-        log "当前的IP信息2：$(ip -o -f inet addr show dev "$IFACE" | awk '{print $4}')"
-        log "当前的IP信息3：$(ip -o -f inet addr show dev "$IFACE" | awk '{print $4}' | grep "^$VIP/")"
         if [ -n "$MATCHES" ]; then
             echo "$MATCHES" | while read CIDR; do
                 ip addr del "$CIDR" dev "$IFACE" && \
