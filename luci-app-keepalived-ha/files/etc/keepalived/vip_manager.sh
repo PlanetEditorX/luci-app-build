@@ -27,10 +27,13 @@ case "$ACTION" in
         fi
         ;;
     unbind)
-        if ip addr show dev "$IFACE" | grep -qw "$VIP"; then
-            ip addr del "$VIP"/24 dev "$IFACE" && \
-            log "✅ VIP $VIP 已从 $IFACE 解绑" || \
-            log "❌ 解绑 VIP $VIP 从 $IFACE 失败"
+        MATCHES=$(ip -o -f inet addr show dev "$IFACE" | awk '{print $4}' | grep "^$VIP/")
+        if [ -n "$MATCHES" ]; then
+            echo "$MATCHES" | while read CIDR; do
+                ip addr del "$CIDR" dev "$IFACE" && \
+                log "✅ VIP $CIDR 已从 $IFACE 解绑" || \
+                log "❌ 解绑 VIP $CIDR 从 $IFACE 失败"
+            done
         else
             log "VIP $VIP 不存在于 $IFACE，无需解绑"
         fi

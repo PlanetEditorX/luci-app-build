@@ -210,25 +210,11 @@ start() {
     logger -t keepalived-ha "keepalived测试失败"
 }
 
-# 在停止keepalived服务后，添加以下逻辑
 stop() {
-    # 现有停止命令
-    /etc/init.d/keepalived stop
-    pkill -f keepalived >/dev/null 2>&1
-    pkill -f "/etc/keepalived/failover_watchdog.sh" >/dev/null 2>&1
-    # 获取当前配置的VIP和接口（从UCI配置中读取）
-    CURRENT_VIP=$(uci get keepalived-ha.general.vip)
-    CURRENT_IFACE=$(uci get keepalived-ha.general.interface)
-
-    # 清理接口上所有非当前VIP的IP（仅清理secondary的VIP，避免删除主IP）
-    if [ -n "$CURRENT_IFACE" ] && [ -n "$CURRENT_VIP" ]; then
-        # 列出接口上的所有IP（排除主IP和当前VIP）
-        OLD_VIPS=$(ip addr show dev "$CURRENT_IFACE" | grep -oE 'inet [0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+' | awk '{print $2}' | grep -v "$CURRENT_VIP" | grep -v 'scope global' | grep 'secondary')
-        for VIP in $OLD_VIPS; do
-            ip addr del "$VIP" dev "$CURRENT_IFACE"
-            logger -t "keepalived-ha" "清理残留VIP: $VIP 从 $CURRENT_IFACE 解绑"
-        done
-    fi
+    # 停止服务和脚本
+    echo "Stopping keepalived-ha service..."
+    /etc/init.d/keepalived stop >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已停止"
+    /etc/init.d/failover_watchdog stop >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog监控服务已停止"
 }
 
 restart() {
