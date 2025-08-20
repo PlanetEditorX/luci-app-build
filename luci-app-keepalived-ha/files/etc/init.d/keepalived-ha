@@ -220,6 +220,7 @@ stop() {
     # 精确匹配进程名为 "keepalived" 的进程（不匹配包含该字符串的其他进程）
     pkill -x keepalived >/dev/null 2>&1 && logger -t keepalived-ha "keepalived 核心服务已停止"
     /etc/init.d/failover_watchdog stop >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog监控服务已停止"
+    pkill -f failover_watchdog >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 所有服务已停止"
 }
 
 restart() {
