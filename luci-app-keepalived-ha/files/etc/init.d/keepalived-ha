@@ -85,7 +85,7 @@ init_config() {
     # 只有在有修改时才提交，避免不必要的配置变动
     if uci -q changes keepalived-ha; then
         uci commit keepalived-ha
-        logger -t keepalived-ha "UCI配置已更新"
+        logger -t keepalived-ha "UCI 配置已更新"
     fi
 
     # 设置非本地IP绑定参数
@@ -201,25 +201,25 @@ start() {
     echo "Starting keepalived-ha service..."
     # /etc/init.d/keepalived start >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已启动" || logger -t keepalived-ha "keepalived服务启动失败"
     /usr/sbin/keepalived -f "$KEEPALIVED_CONF" -D >/dev/null 2>&1 && \
-    logger -t keepalived-ha "keepalived服务已启动（使用配置:$KEEPALIVED_CONF）" || \
-    logger -t keepalived-ha "keepalived服务启动失败"
+    logger -t keepalived-ha "keepalived 服务已启动（使用配置:$KEEPALIVED_CONF）" || \
+    logger -t keepalived-ha "keepalived 服务启动失败"
 
     echo "Starting failover_watchdog service..."
-    /etc/init.d/failover_watchdog start >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog监控服务已启动" || logger -t keepalived-ha "failover_watchdog监控服务启动失败"
+    /etc/init.d/failover_watchdog start >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 监控服务已启动" || logger -t keepalived-ha "failover_watchdog 监控服务启动失败"
 
     echo "Starting keepalived-ha Test..."
     /etc/keepalived/keepalived-ha-debug.sh  >/dev/null 2>&1 && \
-    logger -t keepalived-ha "keepalived测试完成" || \
-    logger -t keepalived-ha "keepalived测试失败"
+    logger -t keepalived-ha "keepalived 测试完成" || \
+    logger -t keepalived-ha "keepalived 测试失败"
 }
 
 stop() {
     # 停止服务和脚本
     echo "Stopping keepalived-ha service..."
-    /etc/init.d/keepalived stop >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已停止"
+    /etc/init.d/keepalived stop >/dev/null 2>&1 && logger -t keepalived-ha "keepalived 服务已停止"
     # 精确匹配进程名为 "keepalived" 的进程（不匹配包含该字符串的其他进程）
     pkill -x keepalived >/dev/null 2>&1 && logger -t keepalived-ha "keepalived 核心服务已停止"
-    /etc/init.d/failover_watchdog stop >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog监控服务已停止"
+    /etc/init.d/failover_watchdog stop >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 监控服务已停止"
     pkill -f failover_watchdog >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 所有服务已停止"
 }
 

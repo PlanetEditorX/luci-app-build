@@ -27,11 +27,32 @@ rotate_log() {
     fi
 }
 
+check_peer_alive() {
+    local ip="$1"
+    local port="$2"
+    local timeout_sec="${3:-1}"  # 默认超时 1 秒
+    local name="$4"
+
+    # Ping 检测
+    if ! ping -c 1 -W "$timeout_sec" -n -q "$ip" >/dev/null 2>&1; then
+        log "[Watchdog] $name $ip ping 不通"
+        return 1
+    fi
+
+    # 端口检测（使用 bash 的 /dev/tcp）
+    if ! timeout "$timeout_sec" bash -c "echo > /dev/tcp/$ip/$port" >/dev/null 2>&1; then
+        log "[Watchdog] $name $ip:$port 端口不可达"
+        return 1
+    fi
+
+    log "[Watchdog] $name $ip:$port 在线"
+    return 0
+}
+
 while true; do
     if [ "$ROLE" = "main" ]; then
         CHECK_NAME="从路由"
-        if ping -c 1 -W 1 -n -q "$CHECK_IP" >/dev/null 2>&1; then
-            log "[Watchdog] $CHECK_NAME $CHECK_IP 在线"
+        if check_peer_alive "$CHECK_IP" 9090 1 "$CHECK_NAME"; then
             FAIL_COUNT=0
             RECOVER_COUNT=$((RECOVER_COUNT + 1))
 
@@ -45,7 +66,6 @@ while true; do
                 uci commit openclash
             fi
         else
-            log "[Watchdog] $CHECK_NAME $CHECK_IP 失联"
             RECOVER_COUNT=0
             FAIL_COUNT=$((FAIL_COUNT + 1))
 
@@ -59,6 +79,7 @@ while true; do
                 /etc/init.d/openclash start
             fi
         fi
+
     else
         CHECK_NAME="主路由"
         if ping -c 1 -W 1 -n -q "$CHECK_IP" >/dev/null 2>&1; then
