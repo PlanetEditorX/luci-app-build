@@ -10,19 +10,23 @@ PID_FILE="/var/run/failover_watchdog.pid"
 # 如果 PID 文件存在
 if [ -f "$PID_FILE" ]; then
     OLD_PID=$(cat "$PID_FILE")
-    if kill -0 "$OLD_PID" 2>/dev/null; then
-        log "发现旧监控脚本正在运行（PID: $OLD_PID），尝试终止"
-        kill "$OLD_PID" 2>/dev/null
-        sleep 1
+    if [ "$OLD_PID" != "$$" ]; then
         if kill -0 "$OLD_PID" 2>/dev/null; then
-            log "旧进程未成功终止，强制杀掉"
-            kill -9 "$OLD_PID" 2>/dev/null
+            log "发现旧监控脚本正在运行（PID: $OLD_PID），尝试终止"
+            kill "$OLD_PID" 2>/dev/null
+            sleep 1
+            if kill -0 "$OLD_PID" 2>/dev/null; then
+                log "旧进程未成功终止，强制杀掉"
+                kill -9 "$OLD_PID" 2>/dev/null
+            fi
+            log "旧进程已清除，准备启动新实例"
+        else
+            log "发现无效 PID 文件，清理 $PID_FILE"
         fi
-        log "旧进程已清除，准备启动新实例"
+        rm -f "$PID_FILE"
     else
-        log "发现无效 PID 文件，清理 $PID_FILE"
+        log "PID 文件中的进程就是当前脚本（PID: $$），无需终止"
     fi
-    rm -f "$PID_FILE"
 fi
 
 # 写入当前进程 PID
@@ -30,6 +34,9 @@ echo $$ > "$PID_FILE"
 
 # 设置退出清理
 trap "rm -f $PID_FILE" EXIT
+
+log "监控脚本已启动（PID: $$）"
+
 
 # 变量将由init.d脚本动态替换
 VIP="@VIP@"
