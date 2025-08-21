@@ -234,6 +234,7 @@ stop() {
     fi
     /etc/init.d/failover_watchdog stop >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 监控服务已停止"
     pkill -f failover_watchdog >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 所有服务已停止"
+    rm -f "/var/run/failover_watchdog.pid"
 }
 
 restart() {
