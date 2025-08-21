@@ -1,19 +1,35 @@
 #!/bin/sh
 
+log() {
+    logger -t "keepalived-ha-failover_watchdog" "$1"
+}
+
 # 添加PID文件控制
 PID_FILE="/var/run/failover_watchdog.pid"
+
+# 如果 PID 文件存在
 if [ -f "$PID_FILE" ]; then
-    # 检查PID对应的进程是否存在
-    if kill -0 $(cat "$PID_FILE") 2>/dev/null; then
-        echo "监控脚本已在运行（PID: $(cat "$PID_FILE")）"
-        exit 0
+    OLD_PID=$(cat "$PID_FILE")
+    if kill -0 "$OLD_PID" 2>/dev/null; then
+        log "发现旧监控脚本正在运行（PID: $OLD_PID），尝试终止"
+        kill "$OLD_PID" 2>/dev/null
+        sleep 1
+        if kill -0 "$OLD_PID" 2>/dev/null; then
+            log "旧进程未成功终止，强制杀掉"
+            kill -9 "$OLD_PID" 2>/dev/null
+        fi
+        log "旧进程已清除，准备启动新实例"
     else
-        # 清理无效PID文件
-        rm -f "$PID_FILE"
+        log "发现无效 PID 文件，清理 $PID_FILE"
     fi
+    rm -f "$PID_FILE"
 fi
-# 写入当前进程PID
+
+# 写入当前进程 PID
 echo $$ > "$PID_FILE"
+
+# 设置退出清理
+trap "rm -f $PID_FILE" EXIT
 
 # 变量将由init.d脚本动态替换
 VIP="@VIP@"
@@ -28,10 +44,6 @@ LOG="/tmp/log/failover_watchdog.log"
 FAIL_COUNT=0
 RECOVER_COUNT=0
 MAX_SIZE=1048576 # 1MB
-
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG"
-}
 
 log "[Watchdog] 启动监控脚本..."
 
@@ -63,9 +75,6 @@ check_peer_alive() {
     log "[Watchdog] $name $ip:$port 在线"
     return 0
 }
-
-# 脚本退出时清理PID文件
-trap "rm -f $PID_FILE" EXIT
 
 while true; do
     if [ "$ROLE" = "main" ]; then
