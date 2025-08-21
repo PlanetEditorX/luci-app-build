@@ -111,7 +111,7 @@ if role_value == "main" then
 
     local recover_threshold_option = main_section:option(Value, "recover_threshold", translate("恢复阈值"))
     recover_threshold_option.datatype = "range(1,10)"
-    recover_threshold_option.default = "2"
+    recover_threshold_option.default = "5"
     recover_threshold_option.description = translate("连续检测成功次数，达到此值恢复（1-10）")
 
     local check_interval_option = main_section:option(Value, "check_interval", translate("检查间隔（秒）"))
