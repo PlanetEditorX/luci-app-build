@@ -199,7 +199,6 @@ start() {
 
     # 启动keepalived服务和监控脚本
     echo "Starting keepalived-ha service..."
-    # /etc/init.d/keepalived start >/dev/null 2>&1 && logger -t keepalived-ha "keepalived服务已启动" || logger -t keepalived-ha "keepalived服务启动失败"
     /usr/sbin/keepalived -f "$KEEPALIVED_CONF" -D >/dev/null 2>&1 && \
     logger -t keepalived-ha "keepalived 服务已启动（使用配置:$KEEPALIVED_CONF）" || \
     logger -t keepalived-ha "keepalived 服务启动失败"
@@ -217,8 +216,22 @@ stop() {
     # 停止服务和脚本
     echo "Stopping keepalived-ha service..."
     /etc/init.d/keepalived stop >/dev/null 2>&1 && logger -t keepalived-ha "keepalived 服务已停止"
-    # 精确匹配进程名为 "keepalived" 的进程（不匹配包含该字符串的其他进程）
-    pkill -x keepalived >/dev/null 2>&1 && logger -t keepalived-ha "keepalived 核心服务已停止"
+    # 尝试通过PID文件终止
+    if [ -f "/var/run/keepalived.pid" ]; then
+        PID=$(cat "/var/run/keepalived.pid")
+        if kill "$PID" 2>/dev/null; then
+            echo "通过PID文件终止 keepalived（PID: $PID）"
+            rm -f "/var/run/keepalived.pid"
+        else
+            echo "PID文件中的进程不存在，尝试通过进程名终止"
+            # 精确匹配进程名为 "keepalived" 的进程（不匹配包含该字符串的其他进程）
+            pkill -x keepalived >/dev/null 2>&1 && logger -t keepalived-ha "keepalived 核心服务已停止"
+            rm -f "/var/run/keepalived.pid"
+        fi
+    else
+        # 无PID文件时直接按进程名终止
+        pkill -x keepalived >/dev/null 2>&1 && logger -t keepalived-ha "keepalived 核心服务已停止"
+    fi
     /etc/init.d/failover_watchdog stop >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 监控服务已停止"
     pkill -f failover_watchdog >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 所有服务已停止"
 }

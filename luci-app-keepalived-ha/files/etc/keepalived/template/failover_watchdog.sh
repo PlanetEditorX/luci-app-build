@@ -1,5 +1,20 @@
 #!/bin/sh
 
+# 添加PID文件控制
+PID_FILE="/var/run/failover_watchdog.pid"
+if [ -f "$PID_FILE" ]; then
+    # 检查PID对应的进程是否存在
+    if kill -0 $(cat "$PID_FILE") 2>/dev/null; then
+        echo "监控脚本已在运行（PID: $(cat "$PID_FILE")）"
+        exit 0
+    else
+        # 清理无效PID文件
+        rm -f "$PID_FILE"
+    fi
+fi
+# 写入当前进程PID
+echo $$ > "$PID_FILE"
+
 # 变量将由init.d脚本动态替换
 VIP="@VIP@"
 ROLE="@ROLE@"
@@ -48,6 +63,9 @@ check_peer_alive() {
     log "[Watchdog] $name $ip:$port 在线"
     return 0
 }
+
+# 脚本退出时清理PID文件
+trap "rm -f $PID_FILE" EXIT
 
 while true; do
     if [ "$ROLE" = "main" ]; then
