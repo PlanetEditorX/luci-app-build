@@ -1,6 +1,7 @@
 #!/bin/sh
 
 log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> /tmp/log/failover_watchdog.log
     logger -t "keepalived-ha-failover_watchdog" "$1"
 }
 
