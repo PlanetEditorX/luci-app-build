@@ -62,6 +62,8 @@ define Package/$(PKG_NAME)/postinst
 	echo "Keepalived HA 服务已自动启用开机启动"
 	/etc/init.d/failover_watchdog enable
 	echo "Failover Watchdog 服务已自动启用开机启动"
+	/etc/init.d/keepalived disable
+	echo "Keepalived HA 已取消Keepalived默认开机启动"
 }
 exit 0
 endef
