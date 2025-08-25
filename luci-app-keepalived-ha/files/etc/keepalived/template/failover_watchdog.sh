@@ -66,7 +66,9 @@ rotate_log() {
     ) 9>/var/lock/failover_watchdog.log.lock
 }
 
+# 检测从路由是否在线
 check_peer_alive() {
+    echo "开始检测: $1:$2" >&2
     local ip="$1"
     local port="$2"
     local timeout_sec="${3:-1}"  # 默认超时 1 秒
@@ -75,16 +77,20 @@ check_peer_alive() {
     # Ping 检测
     if ! ping -c 1 -W "$timeout_sec" -n -q "$ip" >/dev/null 2>&1; then
         log "[Watchdog] $name $ip ping 不通"
-        return 1
+        return 0
     fi
 
     # 端口检测（使用 bash 的 /dev/tcp）
     if ! timeout "$timeout_sec" bash -c "echo > /dev/tcp/$ip/$port" >/dev/null 2>&1; then
         log "[Watchdog] $name $ip:$port 端口不可达"
-        return 1
+        return 0
     fi
 
-    log "[Watchdog] $name $ip:$port 在线"
+    if timeout "$timeout_sec" bash -c "echo > /dev/tcp/$ip/$port" >/dev/null 2>&1; then
+        log "[Watchdog] $name $ip:$port 在线"
+        return 1
+    fi
+    log "[Watchdog] $name $ip:$port 离线"
     return 0
 }
 
@@ -95,9 +101,11 @@ is_openclash_running() {
 while true; do
     if [ "$ROLE" = "main" ]; then
         CHECK_NAME="从路由"
+        # 从路由在线
         if check_peer_alive "$CHECK_IP" 9090 1 "$CHECK_NAME"; then
             FAIL_COUNT=0
             RECOVER_COUNT=$((RECOVER_COUNT + 1))
+            log "[Watchdog] 当前状态：INTERFACE=$INTERFACE, VIP=$VIP, VIP_BOUND=$VIP_BOUND, RECOVER_COUNT=$RECOVER_COUNT,RECOVER_THRESHOLD=$RECOVER_THRESHOLD"
             # 当检测网口有VIP后，检测从路由的状态，大于指定次数后解绑VIP
             if ip -4 addr show "$INTERFACE" | grep -q "inet $VIP/" && [ "$VIP_BOUND" = true ] && [ "$RECOVER_COUNT" -ge "$RECOVER_THRESHOLD" ]; then
                 log "[Watchdog] 检测到 $CHECK_NAME 恢复，进行最终确认..."
@@ -145,7 +153,6 @@ while true; do
                 fi
             fi
         fi
-
     else
         CHECK_NAME="主路由"
         if ping -c 1 -W 1 -n -q "$CHECK_IP" >/dev/null 2>&1; then
