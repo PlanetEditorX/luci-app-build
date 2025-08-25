@@ -109,7 +109,7 @@ while true; do
             FAIL_COUNT=0
             RECOVER_COUNT=$((RECOVER_COUNT + 1))
             # 当检测网口有VIP后，检测从路由的状态，大于指定次数后解绑VIP
-            if ip -4 addr show "$INTERFACE" | grep -q "inet $VIP/" && [ "$VIP_BOUND" = true ] && [ "$RECOVER_COUNT" -ge "$RECOVER_THRESHOLD" ]; then
+            if ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$VIP_BOUND" = true ] && [ "$RECOVER_COUNT" -ge "$RECOVER_THRESHOLD" ]; then
                 log "[Watchdog] 检测到 $CHECK_NAME 恢复，进行最终确认..."
 
                 final_check=true
@@ -141,8 +141,12 @@ while true; do
         else
             RECOVER_COUNT=0
             FAIL_COUNT=$((FAIL_COUNT + 1))
+            log "[Watchdog] 故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"
+            # 新增调试日志
+            log "[Watchdog] VIP检测结果：$(ip -4 addr show "$INTERFACE" | grep "$VIP" || echo "未找到")"
+            log "[Watchdog] 接管条件是否满足：$( [ ! $(ip -4 addr show "$INTERFACE" | grep -qw "$VIP") ] && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ] && echo "是" || echo "否" )"
             log "[Watchdog] 故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"  # 新增日志
-            if ! ip -4 addr show "$INTERFACE" | grep -q "$VIP/" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
+            if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
                 log "[Watchdog] 接管 VIP $VIP"
                 ip addr add "$VIP/24" dev "$INTERFACE"
                 VIP_BOUND=true
