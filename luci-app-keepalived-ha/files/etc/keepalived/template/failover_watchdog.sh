@@ -77,21 +77,21 @@ check_peer_alive() {
     # Ping 检测
     if ! ping -c 1 -W "$timeout_sec" -n -q "$ip" >/dev/null 2>&1; then
         log "[Watchdog] $name $ip ping 不通"
-        return 0
+        return 1
     fi
 
     # 端口检测（使用 bash 的 /dev/tcp）
     if ! timeout "$timeout_sec" bash -c "echo > /dev/tcp/$ip/$port" >/dev/null 2>&1; then
         log "[Watchdog] $name $ip:$port 端口不可达"
-        return 0
+        return 1
     fi
 
     if timeout "$timeout_sec" bash -c "echo > /dev/tcp/$ip/$port" >/dev/null 2>&1; then
         log "[Watchdog] $name $ip:$port 在线"
-        return 1
+        return 0
     fi
     log "[Watchdog] $name $ip:$port 离线"
-    return 0
+    return 1
 }
 
 is_openclash_running() {
