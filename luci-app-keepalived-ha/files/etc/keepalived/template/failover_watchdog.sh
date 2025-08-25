@@ -157,7 +157,7 @@ while true; do
             fi
             log "[Watchdog] 故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"
             # 新增调试日志
-            log "[Watchdog] VIP检测结果：$(ip -4 addr show "$INTERFACE" | grep "$VIP" || echo "未找到")"
+            # log "[Watchdog] VIP检测结果：$(ip -4 addr show "$INTERFACE" | grep "$VIP" || echo "未找到")"
             # log "[Watchdog] 接管条件是否满足：$(
             # if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
             #     echo "是"
