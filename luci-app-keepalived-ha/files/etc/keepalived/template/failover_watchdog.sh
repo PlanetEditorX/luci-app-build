@@ -102,11 +102,14 @@ is_openclash_running() {
 
 while true; do
     # 启动时检测 VIP 是否已绑定
-    if ip -4 addr show "$INTERFACE" | grep -qw "$VIP"; then
-        VIP_BOUND=true
-    else
+    if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP"; then
         VIP_BOUND=false
+        log "VIP $VIP is not bind"
+    else
+        VIP_BOUND=true
+        log "VIP $VIP already present on $INTERFACE"
     fi
+
     if [ "$ROLE" = "main" ]; then
         CHECK_NAME="从路由"
         # 从路由在线
