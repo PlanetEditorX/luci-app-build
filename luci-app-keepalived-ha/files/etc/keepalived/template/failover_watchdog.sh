@@ -8,6 +8,7 @@ log() {
 # 添加PID文件控制
 PID_FILE="/var/run/failover_watchdog.pid"
 VIP_BOUND=true
+MAX_FAIL_COUNT=50  # 设置最大允许值
 
 # 如果 PID 文件存在
 if [ -f "$PID_FILE" ]; then
@@ -104,10 +105,10 @@ while true; do
     # 启动时检测 VIP 是否已绑定
     if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP"; then
         VIP_BOUND=false
-        log "VIP $VIP is not bind"
+        # log "VIP $VIP is not bind"
     else
         VIP_BOUND=true
-        log "VIP $VIP already present on $INTERFACE"
+        # log "VIP $VIP already present on $INTERFACE"
     fi
 
     if [ "$ROLE" = "main" ]; then
@@ -149,16 +150,21 @@ while true; do
         else
             RECOVER_COUNT=0
             FAIL_COUNT=$((FAIL_COUNT + 1))
+            # 限制最大值
+            if [ "$FAIL_COUNT" -ge "$MAX_FAIL_COUNT" ]; then
+                log "[Watchdog] FAIL_COUNT 达到最大值 $MAX_FAIL_COUNT，自动归零"
+                FAIL_COUNT=0
+            fi
             log "[Watchdog] 故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"
             # 新增调试日志
             log "[Watchdog] VIP检测结果：$(ip -4 addr show "$INTERFACE" | grep "$VIP" || echo "未找到")"
-            log "[Watchdog] 接管条件是否满足：$(
-            if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
-                echo "是"
-            else
-                echo "否"
-            fi
-            )"
+            # log "[Watchdog] 接管条件是否满足：$(
+            # if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
+            #     echo "是"
+            # else
+            #     echo "否"
+            # fi
+            # )"
             log "[Watchdog] 故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"  # 新增日志
             if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
                 log "[Watchdog] 接管 VIP $VIP"
