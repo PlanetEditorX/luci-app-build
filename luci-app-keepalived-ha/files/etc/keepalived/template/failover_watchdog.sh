@@ -77,6 +77,12 @@ check_peer_alive() {
     # Ping 检测
     if ! ping -c 1 -W "$timeout_sec" -n -q "$ip" >/dev/null 2>&1; then
         log "[Watchdog] $name $ip ping 不通"
+        if ! is_openclash_running; then
+            log "[Watchdog] 启动主路由openclash"
+            uci set openclash.config.enable='1'
+            uci commit openclash
+            /etc/init.d/openclash start
+        fi
         return 1
     fi
 
