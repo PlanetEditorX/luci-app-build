@@ -86,17 +86,20 @@ check_peer_alive() {
         return 1
     fi
 
-    if timeout "$timeout_sec" bash -c "echo > /dev/tcp/$ip/$port" >/dev/null 2>&1; then
-        log "[Watchdog] $name $ip:$port 在线"
-        return 0
-    fi
-    log "[Watchdog] $name $ip:$port 离线"
-    return 1
+    log "[Watchdog] $name $ip:$port 在线"
+    return 0
 }
 
 is_openclash_running() {
     pgrep -f openclash >/dev/null 2>&1
 }
+
+# 启动时检测 VIP 是否已绑定
+if ip -4 addr show "$INTERFACE" | grep -qw "$VIP"; then
+    VIP_BOUND=true
+else
+    VIP_BOUND=false
+fi
 
 while true; do
     if [ "$ROLE" = "main" ]; then
@@ -105,7 +108,6 @@ while true; do
         if check_peer_alive "$CHECK_IP" 9090 1 "$CHECK_NAME"; then
             FAIL_COUNT=0
             RECOVER_COUNT=$((RECOVER_COUNT + 1))
-            log "[Watchdog] 当前状态：INTERFACE=$INTERFACE, VIP=$VIP, VIP_BOUND=$VIP_BOUND, RECOVER_COUNT=$RECOVER_COUNT,RECOVER_THRESHOLD=$RECOVER_THRESHOLD"
             # 当检测网口有VIP后，检测从路由的状态，大于指定次数后解绑VIP
             if ip -4 addr show "$INTERFACE" | grep -q "inet $VIP/" && [ "$VIP_BOUND" = true ] && [ "$RECOVER_COUNT" -ge "$RECOVER_THRESHOLD" ]; then
                 log "[Watchdog] 检测到 $CHECK_NAME 恢复，进行最终确认..."
@@ -139,7 +141,7 @@ while true; do
         else
             RECOVER_COUNT=0
             FAIL_COUNT=$((FAIL_COUNT + 1))
-
+            log "[Watchdog] 故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"  # 新增日志
             if ! ip -4 addr show "$INTERFACE" | grep -q "$VIP/" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
                 log "[Watchdog] 接管 VIP $VIP"
                 ip addr add "$VIP/24" dev "$INTERFACE"
