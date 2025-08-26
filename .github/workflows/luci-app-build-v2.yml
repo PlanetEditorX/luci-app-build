@@ -108,6 +108,9 @@ jobs:
           path: /home/runner/luci-build-ipk/*.ipk
           retention-days: 30
 
+      - name: 7.设置当前时间
+        run: echo "BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
+
       - name: 7. 发布到 GitHub Release
         uses: softprops/action-gh-release@v1
         env:
@@ -119,5 +122,4 @@ jobs:
           body: |
             🎉 自动编译完成！
             包列表：${{ env.PKG_LIST }}
-            时间：${{ github.event.head_commit.timestamp || github.run_started_at }}
-
+            时间：${{ env.BUILD_TIME }}
