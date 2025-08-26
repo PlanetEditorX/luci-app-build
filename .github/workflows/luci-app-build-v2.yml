@@ -109,7 +109,7 @@ jobs:
           retention-days: 30
 
       - name: 7.设置当前时间
-        run: echo "BUILD_TIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_ENV
+        run: echo "BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')" >> $GITHUB_ENV
 
       - name: 7. 发布到 GitHub Release
         uses: softprops/action-gh-release@v1
