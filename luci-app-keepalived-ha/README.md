@@ -272,7 +272,7 @@ tcpdump -i br-lan vrrp
 ```
 ```sh
 ip addr show br-lan | grep 192.168.1.5
-logread | grep keepalived
+logread -f | grep keepalived
 ```
 
 ---
@@ -404,7 +404,7 @@ echo "[HA-Deploy] 部署完成 ✅ 请重启设备验证 VIP 是否绑定成功"
 ```sh
 cat /tmp/log/keepalived_boot.log
 ip addr show eth0 | grep 192.168.1.5
-logread | grep keepalived
+logread -f | grep keepalived
 ```
 
 ---

@@ -2,7 +2,7 @@
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> /tmp/log/failover_watchdog.log
-    logger -t "keepalived-ha-failover_watchdog" "$1"
+    logger -t "keepalived-ha [Watchdog]" "$1"
 }
 
 # 添加PID文件控制
@@ -55,14 +55,14 @@ FAIL_COUNT=0
 RECOVER_COUNT=0
 MAX_SIZE=1048576 # 1MB
 
-log "[Watchdog] 启动监控脚本..."
+log "启动监控脚本..."
 
 rotate_log() {
     (
         flock -n 9 || exit 1
         if [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -ge "$MAX_SIZE" ]; then
             tail -n 20 "$LOG" > "$LOG"
-            log "[Watchdog] 日志已清理，保留最近 20 行"
+            log "日志已清理，保留最近 20 行"
         fi
     ) 9>/var/lock/failover_watchdog.log.lock
 }
@@ -77,9 +77,9 @@ check_peer_alive() {
 
     # Ping 检测
     if ! ping -c 1 -W "$timeout_sec" -n -q "$ip" >/dev/null 2>&1; then
-        log "[Watchdog] $name $ip ping 不通"
+        log "$name $ip ping 不通"
         if ! is_openclash_running; then
-            log "[Watchdog] 启动主路由openclash"
+            log "启动主路由openclash"
             uci set openclash.config.enable='1'
             uci commit openclash
             /etc/init.d/openclash start
@@ -89,11 +89,11 @@ check_peer_alive() {
 
     # 端口检测（使用 bash 的 /dev/tcp）
     if ! timeout "$timeout_sec" bash -c "echo > /dev/tcp/$ip/$port" >/dev/null 2>&1; then
-        log "[Watchdog] $name $ip:$port 端口不可达"
+        log "$name $ip:$port 端口不可达"
         return 1
     fi
 
-    log "[Watchdog] $name $ip:$port 在线"
+    log "$name $ip:$port 在线"
     return 0
 }
 
@@ -119,7 +119,7 @@ while true; do
             RECOVER_COUNT=$((RECOVER_COUNT + 1))
             # 当检测网口有VIP后，检测从路由的状态，大于指定次数后解绑VIP
             if ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$VIP_BOUND" = true ] && [ "$RECOVER_COUNT" -ge "$RECOVER_THRESHOLD" ]; then
-                log "[Watchdog] 检测到 $CHECK_NAME 恢复，进行最终确认..."
+                log "检测到 $CHECK_NAME 恢复，进行最终确认..."
 
                 final_check=true
                 for i in $(seq 1 3); do
@@ -131,19 +131,19 @@ while true; do
                 done
 
                 if [ "$final_check" = true ]; then
-                    log "[Watchdog] $CHECK_NAME 恢复，解绑 VIP $VIP"
+                    log "$CHECK_NAME 恢复，解绑 VIP $VIP"
                     ip addr del "$VIP/24" dev "$INTERFACE"
                     VIP_BOUND=false
                     RECOVER_COUNT=0
 
                     if is_openclash_running; then
-                        log "[Watchdog] 关闭主路由openclash"
+                        log "关闭主路由openclash"
                         /etc/init.d/openclash stop
                         uci set openclash.config.enable='0'
                         uci commit openclash
                     fi
                 else
-                    log "[Watchdog] 检测到 $CHECK_NAME 恢复，但最终确认失败，重新进行测试..."
+                    log "检测到 $CHECK_NAME 恢复，但最终确认失败，重新进行测试..."
                     RECOVER_COUNT=0
                 fi
             fi
@@ -152,27 +152,27 @@ while true; do
             FAIL_COUNT=$((FAIL_COUNT + 1))
             # 限制最大值
             if [ "$FAIL_COUNT" -ge "$MAX_FAIL_COUNT" ]; then
-                log "[Watchdog] FAIL_COUNT 达到最大值 $MAX_FAIL_COUNT，自动归零"
+                log "FAIL_COUNT 达到最大值 $MAX_FAIL_COUNT，自动归零"
                 FAIL_COUNT=0
             fi
-            log "[Watchdog] 故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"
+            log "故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"
             # 新增调试日志
-            # log "[Watchdog] VIP检测结果：$(ip -4 addr show "$INTERFACE" | grep "$VIP" || echo "未找到")"
-            # log "[Watchdog] 接管条件是否满足：$(
+            # log "VIP检测结果：$(ip -4 addr show "$INTERFACE" | grep "$VIP" || echo "未找到")"
+            # log "接管条件是否满足：$(
             # if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
             #     echo "是"
             # else
             #     echo "否"
             # fi
             # )"
-            log "[Watchdog] 故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"  # 新增日志
+            log "故障计数：FAIL_COUNT=$FAIL_COUNT, 阈值=$FAIL_THRESHOLD"  # 新增日志
             if ! ip -4 addr show "$INTERFACE" | grep -qw "$VIP" && [ "$FAIL_COUNT" -ge "$FAIL_THRESHOLD" ]; then
-                log "[Watchdog] 接管 VIP $VIP"
+                log "接管 VIP $VIP"
                 ip addr add "$VIP/24" dev "$INTERFACE"
                 VIP_BOUND=true
                 FAIL_COUNT=0
                 if ! is_openclash_running; then
-                    log "[Watchdog] 启动主路由openclash"
+                    log "启动主路由openclash"
                     uci set openclash.config.enable='1'
                     uci commit openclash
                     /etc/init.d/openclash start
@@ -182,9 +182,9 @@ while true; do
     else
         CHECK_NAME="主路由"
         if ping -c 1 -W 1 -n -q "$CHECK_IP" >/dev/null 2>&1; then
-            log "[Watchdog] $CHECK_NAME $CHECK_IP 在线"
+            log "$CHECK_NAME $CHECK_IP 在线"
         else
-            log "[Watchdog] $CHECK_NAME $CHECK_IP 失联"
+            log "$CHECK_NAME $CHECK_IP 失联"
         fi
     fi
 
