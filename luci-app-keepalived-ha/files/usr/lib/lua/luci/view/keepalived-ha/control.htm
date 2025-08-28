@@ -1,0 +1,39 @@
+<div class="cbi-map">
+	<h3>服务控制面板</h3>
+	<div>
+		<% local keepalived_running = (luci.sys.call("pgrep keepalived >/dev/null") == 0) %>
+		<% if keepalived_running then %>
+			<p><strong style="color:green;">Keepalived 服务正在运行</strong></p>
+		<% else %>
+			<p><strong style="color:red;">Keepalived 服务未运行</strong></p>
+		<% end %>
+
+		<%
+			-- 从 uci 配置中获取 VIP（假设配置项为 keepalived-ha.general.vip）
+			local uci = require("luci.model.uci").cursor()
+			local vip_addr = uci:get("keepalived-ha", "general", "vip") or "192.168.1.5"  -- 默认值
+			local vip = luci.sys.exec("ip addr show | grep '" .. vip_addr .. "'")
+		%>
+
+		<% if vip and #vip > 0 then %>
+			<p><strong style="color:green;">VIP <%= vip_addr %> 已绑定</strong></p>
+		<% else %>
+			<p><strong style="color:red;">VIP <%= vip_addr %> 未绑定</strong></p>
+		<% end %>
+
+		<form method="post">
+			<input type="submit" name="keepalived_action" value="start" class="cbi-button cbi-button-apply" />
+			<input type="submit" name="keepalived_action" value="stop" class="cbi-button cbi-button-remove" />
+			<input type="submit" name="keepalived_action" value="reload" class="cbi-button cbi-button-reload" />
+		</form>
+
+		<h4>最近日志</h4>
+		<pre><%= luci.sys.exec("logread | grep keepalived-ha | tail -n 5") %></pre>
+	</div>
+</div>
+
+<script>
+	setTimeout(function() {
+		location.reload();
+	}, 30000); // 每 30 秒刷新一次
+</script>

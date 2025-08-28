@@ -8,6 +8,15 @@ m = Map("keepalived-ha",
     translate("Keepalived 高可用"),
     translate("双路由虚拟IP（VIP）故障转移解决方案，支持主从路由自动切换。配置前请确保主从路由网络互通。")
 )
+-- 启用服务开关
+-- local enable_service = s:option(Flag, "enabled", translate("启用服务"),
+--     translate("启用后将自动启动 keepalived-ha 服务"))
+-- enable_service.default = "1"
+m:append(Template("keepalived-ha/control"))
+if action == "reload" then
+    luci.sys.call("/etc/init.d/keepalived-ha reload >/dev/null 2>&1")
+    luci.http.redirect(luci.dispatcher.build_url("admin", "services", "keepalived-ha"))
+end
 
 -- 基础设置段
 s = m:section(NamedSection, "general", "general", translate("基本设置"))
@@ -143,6 +152,20 @@ if role_value == "peer" then
     check_interval_option.description = translate("健康检查的时间间隔（2-60秒）")
 end
 
+-- function enable_service.write(self, section, value)
+--     Value.write(self, section, value)  -- 保留原始写入行为
+
+--     if value == "1" then
+--         luci.sys.call("/etc/init.d/keepalived-ha enable >/dev/null 2>&1")
+--         luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
+--         luci.util.perror(translate("服务已启用并重启"))
+--     else
+--         luci.sys.call("/etc/init.d/keepalived-ha stop >/dev/null 2>&1")
+--         luci.sys.call("/etc/init.d/keepalived-ha disable >/dev/null 2>&1")
+--         luci.util.perror(translate("服务已禁用并停止"))
+--     end
+-- end
+
 -- 配置提交后的操作提示
 function m.on_after_commit(self)
     local role = uci:get("keepalived-ha", "general", "role") or "main"
@@ -158,6 +181,40 @@ function m.on_after_commit(self)
     -- 重启服务
     luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
     luci.util.perror(translate("配置已保存，服务已自动重启"))
+end
+-- m.commit_handler = function(self)
+--     local role = uci:get("keepalived-ha", "general", "role") or "main"
+--     local enabled = uci:get("keepalived-ha", "general", "enabled") or "1"
+
+--     if role == "main" then
+--         uci:delete("keepalived-ha", "peer")
+--     else
+--         uci:delete("keepalived-ha", "main")
+--     end
+--     uci:commit("keepalived-ha")
+
+--     if enabled == "1" then
+--         luci.sys.call("/etc/init.d/keepalived-ha enable >/dev/null 2>&1")
+--         luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
+--         luci.util.perror(translate("服务已启用并重启"))
+--     else
+--         luci.sys.call("/etc/init.d/keepalived-ha stop >/dev/null 2>&1")
+--         luci.sys.call("/etc/init.d/keepalived-ha disable >/dev/null 2>&1")
+--         luci.util.perror(translate("服务已禁用并停止"))
+--     end
+-- end
+
+-- 处理keepalived_action 参数
+local action = luci.http.formvalue("keepalived_action")
+
+if action == "start" then
+    luci.sys.call("/etc/init.d/keepalived-ha enable >/dev/null 2>&1")
+    luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
+    luci.http.redirect(luci.dispatcher.build_url("admin", "services", "keepalived-ha"))
+elseif action == "stop" then
+    luci.sys.call("/etc/init.d/keepalived-ha stop >/dev/null 2>&1")
+    luci.sys.call("/etc/init.d/keepalived-ha disable >/dev/null 2>&1")
+    luci.http.redirect(luci.dispatcher.build_url("admin", "services", "keepalived-ha"))
 end
 
 return m
