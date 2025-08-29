@@ -12,16 +12,21 @@ START=95
 # 停止优先级
 STOP=15
 
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> /tmp/log/failover_watchdog.log
+    logger -t "keepalived-ha [init.d-Watchdog]" "$1"
+}
+
 # 启动服务
 start() {
     if [ -f "$WATCHDOG_SCRIPT" ]; then
-        echo "Starting $NAME..." >> "$LOG_FILE"
+        log "Starting $NAME..."
         # 后台运行并记录进程ID
         "$WATCHDOG_SCRIPT" &
-        echo $! > "/var/run/$NAME.pid"
-        echo "$NAME started" >> "$LOG_FILE"
+        log $! > "/var/run/$NAME.pid"
+        log "$NAME started"
     else
-        echo "Error: $WATCHDOG_SCRIPT not found" >> "$LOG_FILE"
+        log "Error: $WATCHDOG_SCRIPT not found"
         return 1
     fi
 }
@@ -29,7 +34,7 @@ start() {
 # 停止服务
 stop() {
     pkill -f "/etc/keepalived/failover_watchdog.sh" >/dev/null 2>&1
-    echo "failover_watchdog监控服务已停止"
+    log "failover_watchdog监控服务已停止"
 }
 
 # 重启服务
@@ -42,10 +47,10 @@ restart() {
 # 检查状态
 status() {
     if [ -f "/var/run/$NAME.pid" ] && ps $(cat "/var/run/$NAME.pid") >/dev/null 2>&1; then
-        echo "$NAME is running (PID: $(cat /var/run/$NAME.pid))"
+        log "$NAME is running (PID: $(cat /var/run/$NAME.pid))"
         return 0
     else
-        echo "$NAME is not running"
+        log "$NAME is not running"
         return 1
     fi
 }

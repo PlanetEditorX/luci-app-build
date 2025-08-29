@@ -13,6 +13,27 @@
 	.status-item {
 		margin: 0.5em 0;
 	}
+	/* 按钮样式 */
+	.ha-control-btn {
+		padding: 0.5em 1.5em;
+		margin: 1em 0;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+		font-weight: bold;
+		transition: background-color 0.3s;
+	}
+	.start-btn {
+		background-color: #4CAF50;
+		color: white;
+	}
+	.stop-btn {
+		background-color: #f44336;
+		color: white;
+	}
+	.ha-control-btn:hover {
+		opacity: 0.9;
+	}
 </style>
 
 <div class="cbi-section">
@@ -20,6 +41,10 @@
 		<div id="ha-status" class="ha-status-content">
 			<strong><%:系统状态加载中...%></strong>
 		</div>
+		<!-- 服务控制按钮 -->
+		<button id="service-control-btn" class="ha-control-btn">
+			<%:加载中...%>
+		</button>
 	</div>
 </div>
 
@@ -31,6 +56,7 @@
 			function(x, data) {
 				if (x.status == 200) {
 					var statusEl = document.getElementById('ha-status');
+					var btnEl = document.getElementById('service-control-btn');
 					var html = '<h3 style="padding-left:0px">' + '<%:系统状态%>' + '</h3>';
 
 					// Keepalived服务状态
@@ -57,10 +83,41 @@
 					}
 
 					statusEl.innerHTML = html;
+
+					// 更新按钮状态和文本
+					if (data.running) {
+						btnEl.className = 'ha-control-btn stop-btn';
+						btnEl.innerHTML = '<%:停止服务%>';
+					} else {
+						btnEl.className = 'ha-control-btn start-btn';
+						btnEl.innerHTML = '<%:启动服务%>';
+					}
 				}
 			}
 		);
 	}
+
+	// 控制服务启停
+	function controlService() {
+		var btnEl = document.getElementById('service-control-btn');
+		var isRunning = btnEl.classList.contains('stop-btn');
+		var action = isRunning ? 'stop' : 'start';
+
+		// 发送请求控制服务
+		XHR.post('<%=url("admin/services/keepalived-ha/control")%>', {action: action},
+			function(x) {
+				if (x.status == 200) {
+					// 刷新状态（添加延迟确保服务状态已更新）
+					setTimeout(refreshStatus, 1000);
+				} else {
+					alert('<%:操作失败，请重试%>');
+				}
+			}
+		);
+	}
+
+	// 绑定按钮点击事件
+	document.getElementById('service-control-btn').addEventListener('click', controlService);
 
 	// 页面加载完成后立即刷新一次
 	window.onload = function() {

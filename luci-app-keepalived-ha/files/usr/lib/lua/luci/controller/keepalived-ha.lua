@@ -29,6 +29,9 @@ function index()
 
     -- 状态接口（供AJAX调用，始终启用）
     entry({"admin", "services", "keepalived-ha", "api_status"}, call("action_status")).leaf = true
+
+    -- 服务控制接口
+    entry({"admin", "services", "keepalived-ha", "control"}, call("action_control")).leaf = true
 end
 
 function action_status()
@@ -73,4 +76,18 @@ function action_get_logs()
 
     luci.http.prepare_content("text/plain")
     luci.http.write(content)
+end
+
+-- 服务控制函数
+function action_control()
+    local action = luci.http.formvalue("action") or ""
+    if action == "start" then
+        luci.sys.call("/etc/init.d/keepalived-ha start >/dev/null 2>&1")
+    elseif action == "stop" then
+        luci.sys.call("/etc/init.d/keepalived-ha stop >/dev/null 2>&1")
+    elseif action == "restart" then
+        luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
+    end
+    luci.http.prepare_content("text/plain")
+    luci.http.write("OK")
 end
