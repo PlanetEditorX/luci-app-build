@@ -10,8 +10,8 @@ function loadStatus() {
         .then(response => response.json())
         .then(data => {
             const status = `
-                <p><%:keepalived服务状态%>: ${data.running ? '<span style="color:green"><%:运行中%></span>' : '<span style="color:red"><%:已停止%></span>'}</p>
-                <p><%:监控脚本状态%>: ${data.watchdog ? '<span style="color:green"><%:运行中%></span>' : '<span style="color:red"><%:已停止%></span>'}</p>
+                <p><%:Keepalived服务状态%>: ${data.running ? '<span style="color:green"><%:运行中%></span>' : '<span style="color:red"><%:已停止%></span>'}</p>
+                <p><%:Watchdog服务状态%>: ${data.watchdog ? '<span style="color:green"><%:运行中%></span>' : '<span style="color:red"><%:已停止%></span>'}</p>
             `;
             document.getElementById('status-container').innerHTML = status;
         })

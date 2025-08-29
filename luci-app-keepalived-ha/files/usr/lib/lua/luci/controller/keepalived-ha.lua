@@ -29,7 +29,7 @@ end
 function action_status()
     local e = {}
     e.running = luci.sys.call("pgrep keepalived >/dev/null") == 0
-    e.watchdog = luci.sys.call("pgrep failover_watchdog.sh >/dev/null") == 0
+    e.watchdog = luci.sys.call("pgrep failover_watchd >/dev/null") == 0
 
     -- 添加VIP状态检查
     local uci = require "luci.model.uci".cursor()
