@@ -1,0 +1,71 @@
+<style type="text/css">
+	/* 状态区域样式与设置表单对齐 */
+	.ha-status-container {
+		width: 100%;
+		box-sizing: border-box;
+		padding: 1em;
+		margin-bottom: 1.5em;
+	}
+	.ha-status-content {
+		padding-bottom: 1em;
+		line-height: 1.6;
+	}
+	.status-item {
+		margin: 0.5em 0;
+	}
+</style>
+
+<div class="cbi-section">
+	<div class="cbi-section-descr">
+		<div id="ha-status" class="ha-status-content">
+			<strong><%:系统状态加载中...%></strong>
+		</div>
+	</div>
+</div>
+
+
+<script type="text/javascript">
+	// 定期刷新状态
+	function refreshStatus() {
+		XHR.get('<%=url("admin/services/keepalived-ha/api_status")%>', null,
+			function(x, data) {
+				if (x.status == 200) {
+					var statusEl = document.getElementById('ha-status');
+					var html = '<h3 style="padding-left:0px">' + '<%:系统状态%>' + '</h3>';
+
+					// Keepalived服务状态
+					html += '<div class="status-item"><%:Keepalived服务%>: ';
+					html += data.running ?
+						'<span style="color:green"><%:运行中%></span>' :
+						'<span style="color:red"><%:已停止%></span>';
+					html += '</div>';
+
+					// 监控脚本状态
+					html += '<div class="status-item"><%:监控脚本%>: ';
+					html += data.watchdog ?
+						'<span style="color:green"><%:运行中%></span>' :
+						'<span style="color:red"><%:已停止%></span>';
+					html += '</div>';
+
+					// VIP绑定状态（如果有VIP配置）
+					if (data.vip) {
+						html += '<div class="status-item"><%:虚拟IP%> (' + data.vip + '): ';
+						html += data.vip_bound ?
+							'<span style="color:green"><%:已绑定%> (' + data.interface + ')</span>' :
+							'<span style="color:orange"><%:未绑定%></span>';
+						html += '</div>';
+					}
+
+					statusEl.innerHTML = html;
+				}
+			}
+		);
+	}
+
+	// 页面加载完成后立即刷新一次
+	window.onload = function() {
+		refreshStatus();
+		// 每5秒刷新一次
+		setInterval(refreshStatus, 5000);
+	};
+</script>

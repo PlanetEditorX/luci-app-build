@@ -1,61 +1,27 @@
 <%+header%>
-<style>
-    .status-box { margin: 15px 0; padding: 10px; border-radius: 4px; }
-    .running { background: #f0fff4; border: 1px solid #c3e6c3; }
-    .stopped { background: #fff5f5; border: 1px solid #ffcdd2; }
-</style>
-
-<h2><%:Keepalived HA Status%></h2>
-
-<div class="status-box" id="keepalived-status">
-    <strong><%:Keepalived Service%></strong>: <span class="loading"><%:Checking...%></span>
-</div>
-
-<div class="status-box" id="watchdog-status">
-    <strong><%:Failover Watchdog%></strong>: <span class="loading"><%:Checking...%></span>
-</div>
-
-<div class="status-box">
-    <strong><%:Current VIP%></strong>: <span id="vip"><%:Checking...%></span>
+<h2><%:运行状态%></h2>
+<div id="status-container">
+    <p><%:加载中...%></p>
 </div>
 
 <script type="text/javascript">
-function updateStatus() {
-    XHR.get('<%=url("admin/services/keepalived-ha/status")%>', null,
-        function(x, data) {
-            var keepalived = document.querySelector('#keepalived-status span');
-            var watchdog = document.querySelector('#watchdog-status span');
-
-            keepalived.className = data.running ? 'running' : 'stopped';
-            keepalived.textContent = data.running ? '<%:Running%>' : '<%:Stopped%>';
-
-            watchdog.className = data.watchdog ? 'running' : 'stopped';
-            watchdog.textContent = data.watchdog ? '<%:Running%>' : '<%:Stopped%>';
-        }
-    );
-
-    XHR.get('<%=url("admin/network/iface_status")%>', null,
-        function(x, data) {
-            var vip = '<%=luci.model.uci.cursor().get("keepalived-ha", "general", "vip")%>';
-            var found = false;
-            for (var iface in data) {
-                if (data[iface].ipv4 && data[iface].ipv4.length) {
-                    data[iface].ipv4.forEach(function(ip) {
-                        if (ip.indexOf(vip) === 0) {
-                            found = true;
-                        }
-                    });
-                }
-            }
-            document.getElementById('vip').textContent = found ?
-                '<%:Bound to this router%> (' + vip + ')' :
-                '<%:Not bound to this router%> (' + vip + ')';
-        }
-    );
+function loadStatus() {
+    fetch('/cgi-bin/luci/admin/services/keepalived-ha/api_status')
+        .then(response => response.json())
+        .then(data => {
+            const status = `
+                <p><%:keepalived服务状态%>: ${data.running ? '<span style="color:green"><%:运行中%></span>' : '<span style="color:red"><%:已停止%></span>'}</p>
+                <p><%:监控脚本状态%>: ${data.watchdog ? '<span style="color:green"><%:运行中%></span>' : '<span style="color:red"><%:已停止%></span>'}</p>
+            `;
+            document.getElementById('status-container').innerHTML = status;
+        })
+        .catch(error => {
+            document.getElementById('status-container').innerHTML = `<p style="color:red"><%:获取状态失败%>: ${error}</p>`;
+        });
 }
 
-// 初始加载和定时刷新
-updateStatus();
-setInterval(updateStatus, 5000);
+// 页面加载时获取一次状态，之后每5秒刷新
+loadStatus();
+setInterval(loadStatus, 5000);
 </script>
 <%+footer%>

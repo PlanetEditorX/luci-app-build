@@ -48,10 +48,12 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DATA) ./files/usr/lib/lua/luci/controller/keepalived-ha.lua $(1)/usr/lib/lua/luci/controller/
 
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/model/cbi/keepalived-ha
-	$(INSTALL_DATA) ./files/usr/lib/lua/luci/model/cbi/keepalived-ha/keepalived-ha.lua $(1)/usr/lib/lua/luci/model/cbi/keepalived-ha/
+	$(INSTALL_DATA) ./files/usr/lib/lua/luci/model/cbi/keepalived-ha/basic.lua $(1)/usr/lib/lua/luci/model/cbi/keepalived-ha/
+	$(INSTALL_DATA) ./files/usr/lib/lua/luci/model/cbi/keepalived-ha/main.lua $(1)/usr/lib/lua/luci/model/cbi/keepalived-ha/
+	$(INSTALL_DATA) ./files/usr/lib/lua/luci/model/cbi/keepalived-ha/peer.lua $(1)/usr/lib/lua/luci/model/cbi/keepalived-ha/
 
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/keepalived-ha
-	$(INSTALL_DATA) ./files/usr/lib/lua/luci/view/keepalived-ha/status.htm $(1)/usr/lib/lua/luci/view/keepalived-ha/
+	$(INSTALL_DATA) ./files/usr/lib/lua/luci/view/keepalived-ha/status_inline.htm $(1)/usr/lib/lua/luci/view/keepalived-ha/
 endef
 
 # 定义安装后脚本（自动启用服务）
