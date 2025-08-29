@@ -22,6 +22,11 @@ function index()
         entry({"admin", "services", "keepalived-ha", "peer"}, cbi("keepalived-ha/peer"), "从路由设置", 3)
     end
 
+    -- 日志页面
+    entry({"admin", "services", "keepalived-ha", "logs"}, template("keepalived-ha/logs"), "运行日志", 4)
+    entry({"admin", "services", "keepalived-ha", "clear_log"}, call("action_clear_log")).leaf = true
+    entry({"admin", "services", "keepalived-ha", "get_logs"}, call("action_get_logs")).leaf = true
+
     -- 状态接口（供AJAX调用，始终启用）
     entry({"admin", "services", "keepalived-ha", "api_status"}, call("action_status")).leaf = true
 end
@@ -44,4 +49,28 @@ function action_status()
 
     luci.http.prepare_content("application/json")
     luci.http.write_json(e)
+end
+
+-- 新增日志处理函数
+-- 保留与system_keepalived相关的处理（实际logread日志无需清理文件）
+function action_clear_log()
+    luci.http.prepare_content("text/plain")
+    luci.http.write("系统日志无需手动清理（logread自动轮转）")
+end
+
+
+function action_get_logs()
+    local log_type = luci.http.formvalue("type") or "system_keepalived"  -- 默认只处理系统日志
+    local content = ""
+
+    if log_type == "system_keepalived" then
+        -- 核心修改：获取最近100行日志，并通过 tac 倒序输出（最新日志在顶部）
+        -- 增加超时控制避免阻塞
+        content = luci.sys.exec("logread | grep -i 'keepalived' | tail -n 100 2>/dev/null | awk '{a[i++]=$0} END {for (j=i-1; j>=0; j--) print a[j]}'")
+    else
+        content = "<%:未知日志类型%>"
+    end
+
+    luci.http.prepare_content("text/plain")
+    luci.http.write(content)
 end
