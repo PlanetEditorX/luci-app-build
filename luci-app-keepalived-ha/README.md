@@ -56,10 +56,14 @@ luci-app-keepalived-ha/
                     ├── model/                        # 配置数据模型目录
                     │   └── cbi/
                     │       └── keepalived-ha/
-                    │           └── keepalived-ha.lua # 定义LuCI页面的配置表单和数据处理逻辑
+                    │           ├── basic.lua         # 基本设置
+                    │           ├── logs.lua          # 日志
+                    │           ├── main.lua          # 主路由设置
+                    │           └── peer.lua          # 从路由设置
                     └── view/                         # 页面模板目录
                         └── keepalived-ha/
-                            └── status.htm            # (暂未使用)状态页面模板，用于展示keepalived-ha的运行状态信息
+                            ├── logs.htm              # 日志页面
+                            └── status.htm            # 运行状态
 ```
 
 ---

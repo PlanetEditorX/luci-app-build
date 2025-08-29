@@ -54,6 +54,7 @@ define Package/$(PKG_NAME)/install
 
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/view/keepalived-ha
 	$(INSTALL_DATA) ./files/usr/lib/lua/luci/view/keepalived-ha/status_inline.htm $(1)/usr/lib/lua/luci/view/keepalived-ha/
+	$(INSTALL_DATA) ./files/usr/lib/lua/luci/view/keepalived-ha/logs.htm $(1)/usr/lib/lua/luci/view/keepalived-ha/
 endef
 
 # 定义安装后脚本（自动启用服务）
