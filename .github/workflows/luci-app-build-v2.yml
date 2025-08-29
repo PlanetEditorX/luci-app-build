@@ -111,7 +111,7 @@ jobs:
       - name: 7.设置当前时间
         run: echo "BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')" >> $GITHUB_ENV
 
-      - name: 7. 发布到 GitHub Release
+      - name: 8. 发布到 GitHub Release
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
