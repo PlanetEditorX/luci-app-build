@@ -4,7 +4,7 @@
 
 ## 功能
 - 支持 VRRP 虚拟 IP 漂移
-- 支持从路由健康检测（ping）
+- 支持从路由健康检测
 - 故障自动接管 VIP
 - 恢复自动释放 VIP
 - 控制 OpenClash 启停
@@ -12,21 +12,21 @@
 
 ## 适配平台
 - ImmortalWrt MT7981 (RAX3000M eMMC)
-- s922x docker容器
+- s922x docker容器 (通用)
 
 ## 构建方式
 使用 GitHub Actions 自动生成 `.ipk` 包，或本地使用 SDK 编译。
 
 ## 安装方式
+- 通用安装包
+```bash
+opkg install luci-app-keepalived-ha_1.0-r1_all.ipk
+```
 - ImmortalWrt MT7981
 ```bash
 opkg install luci-app-keepalived-ha_1.0-r1_mt798x.ipk
 ```
-- s922x docker
-```bash
-opkg install luci-app-keepalived-ha_1.0-r1_filogic.ipk
-```
-
+- 都安装失败：选择合适的SDK进行编译
 ## 文件结构
 ```bash
 luci-app-keepalived-ha/
