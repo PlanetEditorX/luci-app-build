@@ -279,7 +279,7 @@ while true; do
                         log "启动主路由 OpenClash（从路由稳定失联）"
                         uci set openclash.config.enable='1'
                         uci commit openclash
-                        /etc/init.d/openclash start
+                        /etc/init.d/openclash restart
                         LAST_OPENCLASH_ACTION="started"
                         FAIL_CONFIRM_COUNT=0
                     fi

@@ -185,9 +185,6 @@ remove_vip() {
     else
         logger -t keepalived-ha "无法执行 $VIP_DOWN_SCRIPT：权限不足或文件不存在"
     fi
-    # /etc/init.d/network restart >/dev/null 2>&1 && \
-    # logger -t keepalived-ha "重启网络" || \
-    # logger -t keepalived-ha "重启网络失败"
 }
 
 start() {
@@ -203,7 +200,7 @@ start() {
     logger -t keepalived-ha "keepalived 服务启动失败"
 
     echo "Starting failover_watchdog service..."
-    /etc/init.d/failover_watchdog start >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 监控服务已启动" || logger -t keepalived-ha "failover_watchdog 监控服务启动失败"
+    /etc/init.d/failover_watchdog restart >/dev/null 2>&1 && logger -t keepalived-ha "failover_watchdog 监控服务已启动" || logger -t keepalived-ha "failover_watchdog 监控服务启动失败"
 
     echo "Starting keepalived-ha Test..."
     /etc/keepalived/keepalived-ha-debug.sh  >/dev/null 2>&1 && \
