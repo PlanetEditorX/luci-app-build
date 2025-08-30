@@ -251,11 +251,12 @@ while true; do
                             uci set openclash.config.enable='0'
                             uci commit openclash
                             LAST_OPENCLASH_ACTION="stopped"
+                            RECOVER_CONFIRM_COUNT=0  # 只有真正执行关闭时才重置
                         elif [ "$LAST_OPENCLASH_ACTION" != "stopped" ]; then
                             log "OpenClash 已关闭，无需操作"
                             LAST_OPENCLASH_ACTION="stopped"
+                            RECOVER_CONFIRM_COUNT=0  # 仅在首次确认已关闭时重置
                         fi
-                        RECOVER_CONFIRM_COUNT=0
                     fi
                 else
                     RECOVER_CONFIRM_COUNT=0
@@ -287,10 +288,6 @@ while true; do
                 fi
             fi
         fi
-
-
-
-
     else
         CHECK_NAME="主路由"
         if ping -c 1 -W 1 -n -q "$CHECK_IP" >/dev/null 2>&1; then
