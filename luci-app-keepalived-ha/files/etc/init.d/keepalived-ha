@@ -39,7 +39,6 @@ init_config() {
         uci set keepalived-ha.general.vrid='51'
         uci set keepalived-ha.general.advanced_mode='0'
         uci set keepalived-ha.general.preempt='true'
-        uci set keepalived-ha.general.control_openclash='1'
     else
         # 确保general节的所有必要选项存在
         uci -q get keepalived-ha.general.role || uci set keepalived-ha.general.role='main'
@@ -49,7 +48,6 @@ init_config() {
         uci -q get keepalived-ha.general.vrid || uci set keepalived-ha.general.vrid='51'
         uci -q get keepalived-ha.general.advanced_mode || uci set keepalived-ha.general.advanced_mode='0'
         uci -q get keepalived-ha.general.preempt || uci set keepalived-ha.general.preempt='true'
-        uci -q get keepalived-ha.general.control_openclash || uci set keepalived-ha.general.control_openclash='1'
     fi
 
     # 检查并添加main节（主路由配置）
@@ -61,6 +59,7 @@ init_config() {
         uci set keepalived-ha.main.fail_threshold='3'
         uci set keepalived-ha.main.recover_threshold='2'
         uci set keepalived-ha.main.check_interval='5'
+        uci set keepalived-ha.main.control_openclash='1'
     else
         # 确保main节的所有必要选项存在
         uci -q get keepalived-ha.main.peer_ip || uci set keepalived-ha.main.peer_ip='192.168.1.3'
@@ -68,6 +67,7 @@ init_config() {
         uci -q get keepalived-ha.main.fail_threshold || uci set keepalived-ha.main.fail_threshold='3'
         uci -q get keepalived-ha.main.recover_threshold || uci set keepalived-ha.main.recover_threshold='2'
         uci -q get keepalived-ha.main.check_interval || uci set keepalived-ha.main.check_interval='5'
+        uci -q get keepalived-ha.main.control_openclash || uci set keepalived-ha.main.control_openclash='1'
     fi
 
     # 检查并添加peer节（从路由配置）
@@ -112,6 +112,7 @@ replace_placeholders() {
         local FAIL_THRESHOLD=$(uci get keepalived-ha.main.fail_threshold)
         local RECOVER_THRESHOLD=$(uci get keepalived-ha.main.recover_threshold)
         local CHECK_INTERVAL=$(uci get keepalived-ha.main.check_interval)
+        local CONTROL_OPENCLASH=$(uci get keepalived-ha.main.control_openclash)
         local TEMPLATE="$TEMPLATE_DIR/keepalived_main.conf"
     else
         local CHECK_IP=$(uci get keepalived-ha.peer.main_ip)
@@ -132,22 +133,20 @@ replace_placeholders() {
     sed -i "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g" "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT"
     logger -t keepalived-ha "已替换VIP脚本占位符"
 
-    logger -t keepalived-ha "当前参数: VIP:$VIP;ROLE:$ROLE;INTERFACE:$INTERFACE; CHECK_IP:$CHECK_IP;FAIL_THRESHOLD:$FAIL_THRESHOLD;RECOVER_THRESHOLD:$RECOVER_THRESHOLD;CHECK_INTERVAL:$CHECK_INTERVAL;WATCHDOG_SCRIPT:$WATCHDOG_SCRIPT"
+    logger -t keepalived-ha "当前参数: VIP:$VIP;ROLE:$ROLE;INTERFACE:$INTERFACE; CHECK_IP:$CHECK_IP;FAIL_THRESHOLD:$FAIL_THRESHOLD;RECOVER_THRESHOLD:$RECOVER_THRESHOLD;CHECK_INTERVAL:$CHECK_INTERVAL;s|@CONTROL_OPENCLASH@|$CONTROL_OPENCLASH|g;WATCHDOG_SCRIPT:$WATCHDOG_SCRIPT"
 
     # 替换监控脚本中的占位符
     sed -i "s|@VIP@|$VIP|g; s|@ROLE@|$ROLE|g; s|@INTERFACE@|$INTERFACE|g; s|@CHECK_IP@|$CHECK_IP|g; \
             s|@FAIL_THRESHOLD@|$FAIL_THRESHOLD|g; s|@RECOVER_THRESHOLD@|$RECOVER_THRESHOLD|g; \
-            s|@CHECK_INTERVAL@|$CHECK_INTERVAL|g" "$WATCHDOG_SCRIPT"
+            s|@CHECK_INTERVAL@|$CHECK_INTERVAL|g; s|@CONTROL_OPENCLASH@|$CONTROL_OPENCLASH|g" "$WATCHDOG_SCRIPT"
     logger -t keepalived-ha "已替换监控脚本占位符"
 
     # 生成keepalived主配置文件
     sed "s|@VIP@|$VIP|g; s|@INTERFACE@|$INTERFACE|g; s|@VRID@|$VRID|g; \
-        s|@PRIORITY@|$PRIORITY|g; s|@PREEMPT@|$PREEMPT|g" "$TEMPLATE" > "$KEEPALIVED_CONF"
+        s|@PRIORITY@|$PRIORITY|g; s|@PREEMPT@|$PREEMPT|g; s|@CONTROL_OPENCLASH@|$CONTROL_OPENCLASH|g" "$TEMPLATE" > "$KEEPALIVED_CONF"
     logger -t keepalived-ha "已生成keepalived配置文件: $KEEPALIVED_CONF"
     logger -t keepalived-ha "keepalived配置内容如下 >>>\n$(cat $KEEPALIVED_CONF)"
 
-    # 设置keepalived配置文件读取位置
-    # sed -i 's/^KEEPALIVED_CONF=\/tmp\/keepalived\.conf$/KEEPALIVED_CONF=\/etc\/keepalived\/keepalived\.conf/' /etc/init.d/keepalived
     chmod +x "$VIP_UP_SCRIPT" "$VIP_DOWN_SCRIPT" "$WATCHDOG_SCRIPT"
 }
 

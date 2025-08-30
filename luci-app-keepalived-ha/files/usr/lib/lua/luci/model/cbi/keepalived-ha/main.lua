@@ -29,6 +29,11 @@ check_interval_option.datatype = "range(2,60)"
 check_interval_option.default = "5"
 check_interval_option.description = translate("健康检查的时间间隔（2-60秒）")
 
+-- OpenClash控制开关
+local control_openclash = main_section:option(Flag, "control_openclash", translate("自动控制OpenClash"),
+    translate("故障转移时自动启停OpenClash"))
+control_openclash.default = "1"
+
 function m.on_after_commit(self)
     luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
     luci.util.perror(translate("配置已保存，服务已重启"))
