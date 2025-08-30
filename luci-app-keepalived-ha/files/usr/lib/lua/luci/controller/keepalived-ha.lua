@@ -81,12 +81,10 @@ end
 -- 服务控制函数
 function action_control()
     local action = luci.http.formvalue("action") or ""
-    if action == "start" then
-        luci.sys.call("/etc/init.d/keepalived-ha start >/dev/null 2>&1")
+    if action == "start" or action == "restart" then
+        luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
     elseif action == "stop" then
         luci.sys.call("/etc/init.d/keepalived-ha stop >/dev/null 2>&1")
-    elseif action == "restart" then
-        luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
     end
     luci.http.prepare_content("text/plain")
     luci.http.write("OK")

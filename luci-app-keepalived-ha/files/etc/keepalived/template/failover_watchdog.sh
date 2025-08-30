@@ -64,7 +64,7 @@ rotate_log() {
 monitor_vrrp() {
     tcpdump -i "$INTERFACE" vrrp -n -l 2>/dev/null | awk -v logtag="keepalived-ha [VRRP]" '
     {
-        # 提取源IP（兼容末尾带冒号的情况）
+        # 提取源IP
         src_ip = $3
         sub(/:/, "", src_ip)
 
