@@ -151,7 +151,8 @@ check_peer_alive() {
 
 # OpenClash状态检查
 is_openclash_running() {
-    pgrep -f openclash >/dev/null 2>&1
+    pgrep -f openclash >/dev/null 2>&1 && \
+    [ "$(uci get openclash.config.enable 2>/dev/null)" = "1" ]
 }
 
 # 启动VRRP监控进程
@@ -239,7 +240,7 @@ while true; do
 
                     if [ "$RECOVER_CONFIRM_COUNT" -le 3 ]; then
                         log "从路由检测成功，RECOVER_CONFIRM_COUNT=$RECOVER_CONFIRM_COUNT"
-                    elif [ "$RECOVER_CONFIRM_COUNT" -ge 100 ]; then
+                    elif [ "$RECOVER_CONFIRM_COUNT" -ge 500 ]; then
                         RECOVER_CONFIRM_COUNT=0
                         log "RECOVER_CONFIRM_COUNT 达到上限，已重置为 0"
                     fi
@@ -269,7 +270,7 @@ while true; do
 
                     if [ "$FAIL_CONFIRM_COUNT" -le 3 ]; then
                         log "从路由检测失败，FAIL_CONFIRM_COUNT=$FAIL_CONFIRM_COUNT"
-                    elif [ "$FAIL_CONFIRM_COUNT" -ge 100 ]; then
+                    elif [ "$FAIL_CONFIRM_COUNT" -ge 500 ]; then
                         FAIL_CONFIRM_COUNT=0
                         log "FAIL_CONFIRM_COUNT 达到上限，已重置为 0"
                     fi
