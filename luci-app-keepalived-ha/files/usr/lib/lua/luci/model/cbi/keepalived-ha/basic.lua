@@ -25,7 +25,7 @@ role.default = "main"
 role.description = translate(
     "主路由：从路由故障时接管VIP<br>" ..
     "从路由：正常情况下持有VIP<br>" ..
-    "切换角色并应用后，建议重启"
+    "切换角色并应用后，先重启再修改后续设置"
 )
 
 -- VIP设置（补充默认值和描述）
