@@ -162,6 +162,7 @@ log "VRRP监控进程已启动（PID: $VRRP_MONITOR_PID）"
 # OpenClash 控制状态计数器
 RECOVER_CONFIRM_COUNT=0
 FAIL_CONFIRM_COUNT=0
+LAST_OPENCLASH_ACTION=""
 
 # 主循环
 while true; do
@@ -232,7 +233,6 @@ while true; do
         # 控制 OpenClash 的逻辑
         if [ "$CONTROL_OPENCLASH" = "1" ]; then
             if [ "$VRRP_STATUS" = "peer" ]; then
-                # 从路由在线，尝试关闭主路由的 OpenClash
                 if check_peer_alive "$CHECK_IP" 9090 1 "$CHECK_NAME"; then
                     RECOVER_CONFIRM_COUNT=$((RECOVER_CONFIRM_COUNT + 1))
                     FAIL_CONFIRM_COUNT=0
@@ -250,8 +250,10 @@ while true; do
                             /etc/init.d/openclash stop
                             uci set openclash.config.enable='0'
                             uci commit openclash
-                        else
+                            LAST_OPENCLASH_ACTION="stopped"
+                        elif [ "$LAST_OPENCLASH_ACTION" != "stopped" ]; then
                             log "OpenClash 已关闭，无需操作"
+                            LAST_OPENCLASH_ACTION="stopped"
                         fi
                         RECOVER_CONFIRM_COUNT=0
                     fi
@@ -260,7 +262,6 @@ while true; do
                 fi
 
             elif [ "$VRRP_STATUS" = "main" ] || [ "$VRRP_STATUS" = "failed" ]; then
-                # 从路由失联，尝试启动主路由的 OpenClash
                 if ! is_openclash_running; then
                     FAIL_CONFIRM_COUNT=$((FAIL_CONFIRM_COUNT + 1))
                     RECOVER_CONFIRM_COUNT=0
@@ -273,21 +274,20 @@ while true; do
                     fi
 
                     if [ "$FAIL_CONFIRM_COUNT" -ge 3 ]; then
-                        if ! is_openclash_running; then
-                            log "启动主路由 OpenClash（从路由稳定失联）"
-                            uci set openclash.config.enable='1'
-                            uci commit openclash
-                            /etc/init.d/openclash start
-                        else
-                            log "OpenClash 已在运行，无需启动"
-                        fi
+                        log "启动主路由 OpenClash（从路由稳定失联）"
+                        uci set openclash.config.enable='1'
+                        uci commit openclash
+                        /etc/init.d/openclash start
+                        LAST_OPENCLASH_ACTION="started"
                         FAIL_CONFIRM_COUNT=0
                     fi
-                else
-                    FAIL_CONFIRM_COUNT=0
+                elif [ "$LAST_OPENCLASH_ACTION" != "started" ]; then
+                    log "OpenClash 已在运行，无需启动"
+                    LAST_OPENCLASH_ACTION="started"
                 fi
             fi
         fi
+
 
 
 
