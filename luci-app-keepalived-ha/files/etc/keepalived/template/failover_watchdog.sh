@@ -63,6 +63,9 @@ rotate_log() {
 # VRRP报文监控函数
 monitor_vrrp() {
     tcpdump -i "$INTERFACE" vrrp -n -l 2>/dev/null | awk -v logtag="keepalived-ha [VRRP]" '
+    BEGIN {
+        last_status = ""
+    }
     {
         # 提取源IP
         src_ip = $3
@@ -72,23 +75,36 @@ monitor_vrrp() {
         prio = "unknown"
         for (i=1; i<=NF; i++) {
             if ($i == "prio") {
-                prio = $(i+1)  # 优先级是"prio"的下一个字段
-                sub(/,/, "", prio)  # 移除可能的逗号
+                prio = $(i+1)
+                sub(/,/, "", prio)
                 break
             }
         }
 
-        # 输出到日志
-        cmd = "echo \"[$(date +\"%Y-%m-%d %H:%M:%S\")] VRRP监控: " src_ip " 优先级 " prio "\" >> /tmp/log/failover_watchdog.log"
-        system(cmd)
-        cmd = "logger -t \"" logtag "\" \"" src_ip " 优先级 " prio "\""
-        system(cmd)
+        # 当前状态组合
+        current_status = src_ip " " prio
 
-        # 写入状态文件供主进程读取
-        cmd = "echo \"" src_ip " " prio "\" > /tmp/keepalived_vrrp_status.tmp"
-        system(cmd)
-        cmd = "mv /tmp/keepalived_vrrp_status.tmp /tmp/keepalived_vrrp_status"
-        system(cmd)
+        # 只有状态变化时才输出日志和更新文件
+        if (current_status != last_status) {
+            # 时间戳
+            cmd = "date +\"%Y-%m-%d %H:%M:%S\""
+            cmd | getline timestamp
+            close(cmd)
+
+            # 写入日志文件
+            log_line = "[" timestamp "] VRRP监控: " current_status
+            system("echo \"" log_line "\" >> /tmp/log/failover_watchdog.log")
+
+            # 写入系统日志
+            system("logger -t \"" logtag "\" \"" src_ip " 优先级 " prio "\"")
+
+            # 写入状态文件
+            system("echo \"" current_status "\" > /tmp/keepalived_vrrp_status.tmp")
+            system("mv /tmp/keepalived_vrrp_status.tmp /tmp/keepalived_vrrp_status")
+
+            # 更新上次状态
+            last_status = current_status
+        }
     }'
 }
 
