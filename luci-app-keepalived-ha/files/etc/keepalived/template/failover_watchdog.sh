@@ -204,7 +204,6 @@ while true; do
         # if check_peer_alive "$CHECK_IP" 9090 1 "$CHECK_NAME"; then
         #     FAIL_COUNT=0
         #     RECOVER_COUNT=$((RECOVER_COUNT + 1))
-        #     log "test-1"
         #     log "VIP_BOUND: $VIP_BOUND; RECOVER_COUNT: $RECOVER_COUNT; RECOVER_THRESHOLD: $RECOVER_THRESHOLD"
         #     # 从路由恢复，解绑VIP
         #     if [ "$VIP_BOUND" = true ] && [ "$RECOVER_COUNT" -ge "$RECOVER_THRESHOLD" ] && [ "$VRRP_STATUS" = "peer" ]; then
@@ -228,7 +227,6 @@ while true; do
         #             RECOVER_COUNT=0
         #         fi
         #     fi
-        #     log "test-2"
         # else
         #     RECOVER_COUNT=0
         #     FAIL_COUNT=$((FAIL_COUNT + 1))
