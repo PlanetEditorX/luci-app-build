@@ -161,7 +161,12 @@ check_peer_alive() {
         return 1
     fi
 
-    log "$name $ip:$port 在线"
+    # 路由的9090端口在线时默认OpenClash在线
+    if [ "$port" = "9090" ]; then
+        log "$name $ip OpenClash 在线"
+    else
+        log "$name $ip:$port 在线"
+    fi
     return 0
 }
 
