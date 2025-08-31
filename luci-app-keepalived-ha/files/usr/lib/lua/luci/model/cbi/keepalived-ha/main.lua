@@ -35,6 +35,7 @@ local control_openclash = main_section:option(Flag, "control_openclash", transla
 control_openclash.default = "1"
 
 function m.on_after_commit(self)
+    luci.model.uci.cursor():commit("keepalived-ha")
     luci.sys.call("/etc/init.d/keepalived-ha restart >/dev/null 2>&1")
     luci.util.perror(translate("配置已保存，服务已重启"))
 	luci.http.redirect(luci.dispatcher.build_url("admin", "services", "keepalived-ha", "basic"))
