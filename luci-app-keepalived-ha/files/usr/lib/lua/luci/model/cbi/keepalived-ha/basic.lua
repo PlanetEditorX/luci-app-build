@@ -41,7 +41,23 @@ iface.description = translate("绑定VIP的接口，通常为LAN接口")
 
 -- 动态加载接口（排除回环和虚拟接口）
 for _, i in ipairs(luci.sys.net.devices()) do
-    if i ~= "lo" and not i:match("^tun") and not i:match("^tap") then
+    -- 排除规则说明：
+    -- 1. 排除回环接口（lo）
+    -- 2. 排除tun/tap虚拟隧道接口
+    -- 3. 排除sit0/ip6tnl0 IPv6隧道接口
+    -- 4. 排除ra0/rax0系列无线接口（常见于联发科/高通无线芯片）
+    -- 5. 排除apcli0/apclix0虚拟接口（可能为厂商自定义虚拟设备）
+    -- 6. 排除pppoe-wan（实际拨号WAN口，按需可调整）
+    if i ~= "lo"
+        and not i:match("^tun")
+        and not i:match("^tap")
+        and i ~= "sit0"
+        and i ~= "ip6tnl0"
+        and not i:match("^ra")
+        and i ~= "apcli0"
+        and i ~= "apclix0"
+        and i ~= "pppoe-wan"
+    then
         iface:value(i)
     end
 end
