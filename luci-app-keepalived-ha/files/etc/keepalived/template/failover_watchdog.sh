@@ -200,6 +200,11 @@ while true; do
 
     if [ "$ROLE" = "main" ]; then
         CHECK_NAME="从路由"
+        # 异常情况,已经通告从路由了,但没有释放本地VIP
+        if [ "$VIP_BOUND" = true ] && [ "$VRRP_STATUS" = "peer" ]; then
+            log "检测到 主路由 未释放VIP,进行解绑 VIP $VIP 操作..."
+            ip addr del "$VIP/24" dev "$INTERFACE"
+        fi
         # # 结合VRRP状态和健康检查
         # if check_peer_alive "$CHECK_IP" 9090 1 "$CHECK_NAME"; then
         #     FAIL_COUNT=0
@@ -250,7 +255,7 @@ while true; do
         #     fi
         # fi
 
-        # 控制 OpenClash 的逻辑
+        # 控制 OpenClash
         if [ "$CONTROL_OPENCLASH" = "1" ]; then
             if [ "$VRRP_STATUS" = "peer" ]; then
                 if check_peer_alive "$CHECK_IP" 9090 1 "$CHECK_NAME"; then
