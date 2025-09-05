@@ -34,8 +34,9 @@ function action_index()
 	local form_git_email = http.formvalue("git_email")
 
 	local git_path = (form_git_path and form_git_path ~= "") and form_git_path or uci:get("model-update", "config", "git_path")
-	local git_user = uci:get("model-update", "config", "git_user")
-	local git_email = uci:get("model-update", "config", "git_email")
+	local git_user = uci:get("model-update", "config", "git_user") or sys.exec("git config --global user.name"):gsub("\n", "")
+	local git_email = uci:get("model-update", "config", "git_email") or sys.exec("git config --global user.email"):gsub("\n", "")
+
 	local error_msg = nil
 
 	if not git_path or git_path == "" then
@@ -53,11 +54,13 @@ function action_index()
 	if form_git_user then
 		uci:set("model-update", "config", "git_user", form_git_user)
 		git_user = form_git_user
+		sys.call("git config --global user.name '" .. form_git_user:gsub("'", "") .. "'")
 	end
 
 	if form_git_email then
 		uci:set("model-update", "config", "git_email", form_git_email)
 		git_email = form_git_email
+		sys.call("git config --global user.email '" .. form_git_email:gsub("'", "") .. "'")
 	end
 
 	if form_git_path or form_git_user or form_git_email then
@@ -98,9 +101,9 @@ function action_index()
 		fs.remove("/tmp/crontab.tmp")
 
 		sys.call("(GIT_PATH='" .. git_path ..
-				 "' GIT_AUTHOR_NAME='" .. (git_user or "") ..
-				 "' GIT_AUTHOR_EMAIL='" .. (git_email or "") ..
-				 "' /etc/init.d/model-update restart) &")
+				"' GIT_AUTHOR_NAME='" .. (git_user or "") ..
+				"' GIT_AUTHOR_EMAIL='" .. (git_email or "") ..
+				"' /etc/init.d/model-update restart) &")
 		http.redirect(dispatcher.build_url("admin/services/model-update"))
 		return
 	end

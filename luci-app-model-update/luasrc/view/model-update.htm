@@ -3,21 +3,21 @@
 
 <!-- 状态栏 -->
 <div id="status-banner" style="
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background-color: #f0f8ff; /* 中性蓝灰背景 */
-    border-left: 6px solid #007bff; /* 蓝色边框 */
-    padding: 10px 15px;
-    margin: 10px 0 20px 0;
-    border-radius: 6px;
-    font-size: 1.1em;
-    font-weight: bold;
-    color: #333;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	background-color: #f0f8ff; /* 中性蓝灰背景 */
+	border-left: 6px solid #007bff; /* 蓝色边框 */
+	padding: 10px 15px;
+	margin: 10px 0 20px 0;
+	border-radius: 6px;
+	font-size: 1.1em;
+	font-weight: bold;
+	color: #333;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 ">
-    <span id="status-label">🔵 当前状态：<span id="status-text"><%=status%></span></span>
-    <button type="button" id="stop-btn" class="cbi-button cbi-button-remove" style="display:none;" onclick="stopUpdate()">停止运行</button>
+	<span id="status-label">🔵 当前状态：<span id="status-text"><%=status%></span></span>
+	<button type="button" id="stop-btn" class="cbi-button cbi-button-remove" style="display:none;" onclick="stopUpdate()">停止运行</button>
 </div>
 
 <!-- 表单区域 -->
@@ -136,6 +136,7 @@ function refreshStatus() {
 		.then(response => response.json())
 		.then(data => {
 			const statusText = document.getElementById("status-text");
+			const statusLabel = document.getElementById("status-label");
 			const banner = document.getElementById("status-banner");
 			const stopBtn = document.getElementById("stop-btn");
 			statusText.textContent = data.status;
