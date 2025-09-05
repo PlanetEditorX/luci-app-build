@@ -1,47 +1,63 @@
-name: LuCI 应用编译-多包（OpenWRT 24.10.2）
+name: LuCI 应用编译 Matrix（OpenWRT 24.10.2）
 
 on:
-  workflow_dispatch:  # ✅ 手动触发
-  # push:               # ✅ 自动触发
+  workflow_dispatch:
+  # push:
   #   paths:
-  #     - 'luci-app-*/**'  # ✅ 仅当 luci-app-xxx 目录下文件变动时触发
+  #     - 'luci-app-*/**'
 
 jobs:
-  build-luci-apps:
+  detect:
     runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.pkg_matrix }}
     steps:
-      - name: 1. 拉取仓库代码（含 luci-app-xxx）
+      - name: 1️⃣ Checkout 仓库
         uses: actions/checkout@v4
 
-      - name: 2. 安装编译依赖
+      - name: 2️⃣ 识别 luci-app-* 包
+        id: set-matrix
+        run: |
+          echo "📦 正在识别 luci-app-* 包..."
+          PKG_LIST=$(find . -maxdepth 1 -type d -name "luci-app-*")
+          MATRIX_JSON="{\"pkg\":["
+
+          FIRST=true
+          for PKG in $PKG_LIST; do
+            PKG_NAME=$(basename "$PKG")
+            if [ "$PKG_NAME" = "luci-app-hello" ]; then
+              echo "🚫 跳过默认包：$PKG_NAME"
+              continue
+            fi
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              MATRIX_JSON+=","
+            fi
+            MATRIX_JSON+="\"$PKG_NAME\""
+          done
+          MATRIX_JSON+="]}"
+          echo "✅ Matrix JSON: $MATRIX_JSON"
+          echo "pkg_matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+
+  build:
+    needs: detect
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
+    name: 编译 ${{ matrix.pkg }}
+    steps:
+      - name: 1️⃣ Checkout 仓库
+        uses: actions/checkout@v4
+
+      - name: 2️⃣ 安装依赖
         run: |
           sudo apt update -y || true
           sudo apt install -y \
             build-essential git wget tar zstd xz-utils \
             python3 python3-dev python3-setuptools swig
 
-      - name: 3. 动态识别 luci-app-* 包
-        id: detect-packages
-        run: |
-          echo "📦 查找 luci-app-* 包..."
-          PKG_LIST=$(find "$GITHUB_WORKSPACE/" -mindepth 1 -maxdepth 1 -type d -name "luci-app-*")
-          echo "$PKG_LIST"
-
-          PKG_COUNT=$(echo "$PKG_LIST" | wc -l)
-          FINAL_LIST=""
-          for PKG_DIR in $PKG_LIST; do
-            PKG_NAME=$(basename "$PKG_DIR")
-            if [ "$PKG_NAME" = "luci-app-hello" ] && [ "$PKG_COUNT" -gt 1 ]; then
-              echo "🚫 跳过默认包：$PKG_NAME"
-              continue
-            fi
-            FINAL_LIST="$FINAL_LIST $PKG_NAME"
-          done
-
-          echo "✅ 最终待编译包列表：$FINAL_LIST"
-          echo "PKG_LIST=$FINAL_LIST" >> "$GITHUB_ENV"
-
-      - name: 4. 下载并解压 OpenWRT SDK
+      - name: 3️⃣ 下载并解压 OpenWRT SDK
         run: |
           RUNNER_HOME="/home/runner"
           SDK_URL="https://downloads.openwrt.org/releases/24.10.2/targets/mediatek/filogic/openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
@@ -50,26 +66,19 @@ jobs:
           SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
 
           mkdir -p "$SDK_DIR" && cd "$SDK_DIR"
-          if [ ! -f "$SDK_TAR" ]; then
-            wget "$SDK_URL" -O "$SDK_TAR" || { echo "❌ SDK下载失败"; exit 1; }
-          fi
+          wget "$SDK_URL" -O "$SDK_TAR"
+          zstd -d "$SDK_TAR" && tar -xf "${SDK_TAR%.zst}"
+          echo "✅ SDK 解压完成"
 
-          if [ ! -d "$SDK_FOLDER" ]; then
-            zstd -d "$SDK_TAR" && tar -xf "${SDK_TAR%.zst}" || { echo "❌ SDK解压失败"; exit 1; }
-          fi
-          echo "✅ SDK解压完成：$SDK_DIR/$SDK_FOLDER"
-
-      - name: 5. 复制并编译所有 luci-app-* 包
+      - name: 4️⃣ 编译 ${{ matrix.pkg }}
         run: |
           RUNNER_HOME="/home/runner"
           SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
           SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
           FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
-          OUTPUT_DIR="$RUNNER_HOME/luci-build-ipk"
-          PKG_LIST="${{ env.PKG_LIST }}"
+          OUTPUT_DIR="$RUNNER_HOME/luci-build-ipk/${{ matrix.pkg }}"
 
-          cd "$FULL_SDK_PATH" || { echo "❌ SDK路径错误"; exit 1; }
-
+          cd "$FULL_SDK_PATH"
           > feeds.conf.default
           echo 'src-git base https://github.com/openwrt/openwrt.git;openwrt-24.10' >> feeds.conf.default
           echo 'src-git packages https://github.com/openwrt/packages.git;master' >> feeds.conf.default
@@ -78,48 +87,49 @@ jobs:
           ./scripts/feeds install -a
 
           mkdir -p "$OUTPUT_DIR"
+          cp -r "$GITHUB_WORKSPACE/${{ matrix.pkg }}" package/
+          echo "CONFIG_PACKAGE_${{ matrix.pkg }}=y" >> .config
+          make defconfig
+          make package/${{ matrix.pkg }}/clean V=s || echo "⚠️ 无旧产物"
+          make package/${{ matrix.pkg }}/compile V=s -j1
 
-          for PKG_NAME in $PKG_LIST; do
-            echo "🔄 编译包：$PKG_NAME"
+          ARCH_DIR=$(find "bin/packages/" -maxdepth 1 -type d ! -name "*.ipk" ! -name "packages" | head -n1)
+          IPK_PATH=$(find "$ARCH_DIR/" | grep "${{ matrix.pkg }}")
+          cp -f $IPK_PATH "$OUTPUT_DIR/"
 
-            rm -rf "package/$PKG_NAME"
-            cp -r "$GITHUB_WORKSPACE/$PKG_NAME" "package/" || { echo "❌ 复制失败：$PKG_NAME"; continue; }
-
-            make defconfig
-            echo "CONFIG_PACKAGE_$PKG_NAME=y" >> .config
-            make defconfig || { echo "❌ 配置失败：$PKG_NAME"; continue; }
-
-            make package/$PKG_NAME/clean V=s || echo "⚠️ 无旧产物"
-            make package/$PKG_NAME/compile V=s -j1 || { echo "❌ 编译失败：$PKG_NAME"; continue; }
-
-            ARCH_DIR=$(find "bin/packages/" -maxdepth 1 -type d ! -name "*.ipk" ! -name "packages" | head -n1)
-            IPK_PATH=$(find "$ARCH_DIR/" | grep "$PKG_NAME")
-            if [ -z "$IPK_PATH" ]; then
-              echo "❌ 未找到 IPK：$PKG_NAME"; continue;
-            fi
-            cp -f "$IPK_PATH" "$OUTPUT_DIR/"
-            echo "✅ 编译完成：$PKG_NAME → $(basename $IPK_PATH)"
-          done
-
-      - name: 6. 上传所有编译产物
+      - name: 5️⃣ 上传 IPK
         uses: actions/upload-artifact@v4
         with:
-          name: "luci-app-ipks"
-          path: /home/runner/luci-build-ipk/*.ipk
+          name: ${{ matrix.pkg }}-ipk
+          path: /home/runner/luci-build-ipk/${{ matrix.pkg }}/*.ipk
           retention-days: 30
 
-      - name: 7.设置当前时间
+  release:
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: 1️⃣ 下载所有 IPK 产物
+        uses: actions/download-artifact@v4
+        with:
+          path: /home/runner/all-ipks
+
+      - name: 2️⃣ 设置当前时间
         run: echo "BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')" >> $GITHUB_ENV
 
-      - name: 8. 发布到 GitHub Release
+      - name: 3️⃣ 生成包列表
+        run: |
+          PKG_NAMES=$(ls /home/runner/all-ipks | sed 's/-ipk$//' | tr '\n' ',' | sed 's/,$//')
+          echo "PKG_NAMES=$PKG_NAMES" >> $GITHUB_ENV
+
+      - name: 4️⃣ 发布到 GitHub Release
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: "auto-${{ github.run_id }}"
-          name: "最新编译IPK包"
-          files: /home/runner/luci-build-ipk/*.ipk
+          name: "自动编译 LuCI 应用包"
           body: |
-            🎉 自动编译完成！
-            包列表：${{ env.PKG_LIST }}
+            🎉 所有包编译完成！
+            包列表：${{ env.PKG_NAMES }}
             时间：${{ env.BUILD_TIME }}
+          files: /home/runner/all-ipks/**/*.ipk
