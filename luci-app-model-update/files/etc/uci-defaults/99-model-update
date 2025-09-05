@@ -1,0 +1,28 @@
+#!/bin/sh
+
+CONFIG_NAME="model-update"
+CONFIG_FILE="/etc/config/$CONFIG_NAME"
+LOG_FILE="/var/log/model-update.log"
+KEY_PATH="/root/.ssh/id_rsa"
+
+# 初始化 UCI 配置
+if [ ! -f "$CONFIG_FILE" ]; then
+    cat <<EOF > "$CONFIG_FILE"
+config config
+    option git_path ''
+    option git_user ''
+    option git_email ''
+    option cron_schedule ''
+EOF
+fi
+
+# 初始化日志文件
+touch "$LOG_FILE"
+chmod 644 "$LOG_FILE"
+
+# 初始化 SSH 密钥
+if [ ! -f "$KEY_PATH" ]; then
+    ssh-keygen -t rsa -N '' -f "$KEY_PATH"
+fi
+
+exit 0

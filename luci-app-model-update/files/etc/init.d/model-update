@@ -1,0 +1,28 @@
+#!/bin/sh /etc/rc.common
+# OpenWrt init script for model-update
+
+START=99
+STOP=10
+
+start() {
+    [ -x /etc/openclash/model-update.sh ] && /etc/openclash/model-update.sh &
+}
+
+stop() {
+    killall -q model-update.sh 2>/dev/null
+}
+
+restart() {
+    stop
+    start
+}
+
+status() {
+    if pgrep -f "model-update.sh" >/dev/null; then
+        echo "Model update is running."
+        return 0
+    else
+        echo "Model update is not running."
+        return 1
+    fi
+}
