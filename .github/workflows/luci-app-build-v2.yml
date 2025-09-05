@@ -2,6 +2,15 @@ name: LuCI 应用编译 Matrix（OpenWRT 24.10.2）
 
 on:
   workflow_dispatch:
+    inputs:
+      verbose:
+        description: '是否输出详细编译日志（V=s）'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
   # push:
   #   paths:
   #     - 'luci-app-*/**'
@@ -78,6 +87,11 @@ jobs:
           FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
           OUTPUT_DIR="$RUNNER_HOME/luci-build-ipk/${{ matrix.pkg }}"
 
+          VERBOSE_FLAG=""
+          if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
+            VERBOSE_FLAG="V=s"
+          fi
+
           cd "$FULL_SDK_PATH"
           > feeds.conf.default
           echo 'src-git base https://github.com/openwrt/openwrt.git;openwrt-24.10' >> feeds.conf.default
@@ -90,8 +104,8 @@ jobs:
           cp -r "$GITHUB_WORKSPACE/${{ matrix.pkg }}" package/
           echo "CONFIG_PACKAGE_${{ matrix.pkg }}=y" >> .config
           make defconfig
-          make package/${{ matrix.pkg }}/clean V=s || echo "⚠️ 无旧产物"
-          make package/${{ matrix.pkg }}/compile V=s -j1
+          make package/${{ matrix.pkg }}/clean $VERBOSE_FLAG || echo "⚠️ 无旧产物"
+          make package/${{ matrix.pkg }}/compile $VERBOSE_FLAG -j1
 
           ARCH_DIR=$(find "bin/packages/" -maxdepth 1 -type d ! -name "*.ipk" ! -name "packages" | head -n1)
           IPK_PATH=$(find "$ARCH_DIR/" | grep "${{ matrix.pkg }}")
