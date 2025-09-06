@@ -134,8 +134,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "auto-${{ github.run_id }}"
-          name: "自动发布 ${{ github.run_id }}"
+          tag_name: "${{ env.PKG_NAME }}-${{ github.run_id }}"
+          name: "自动编译 - ${{ env.PKG_NAME }}"
           files: /home/runner/luci-build-ipk/*.ipk
           body: |
             🎉 自动编译完成！
