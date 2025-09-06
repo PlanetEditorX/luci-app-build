@@ -128,7 +128,9 @@ jobs:
           path: /home/runner/all-ipks
 
       - name: 2️⃣ 设置当前时间
-        run: echo "BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')" >> $GITHUB_ENV
+        run: |
+          echo "BUILD_TIME=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')" >> $GITHUB_ENV
+          echo "VERSION_TAG=$(TZ='Asia/Shanghai' date '+%Y%m%d%H%M')" >> $GITHUB_ENV
 
       - name: 3️⃣ 生成包列表
         run: |
@@ -140,10 +142,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "auto-${{ github.run_id }}"
+          tag_name: "all-build-${{ env.VERSION_TAG }}"
           name: "自动编译 LuCI 应用包"
+          files: /home/runner/all-ipks/**/*.ipk
           body: |
             🎉 所有包编译完成！
             包列表：${{ env.PKG_NAMES }}
             时间：${{ env.BUILD_TIME }}
-          files: /home/runner/all-ipks/**/*.ipk
