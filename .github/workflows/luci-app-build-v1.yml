@@ -1,4 +1,4 @@
-name: LuCI编译-单包（OpenWRT 24.10.2）
+name: LuCI编译-单应用（OpenWRT 24.10.2）
 
 on:
   workflow_dispatch:
