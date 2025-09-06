@@ -118,6 +118,7 @@
 	padding:16px;
 	background-color: #1e1e1e;
 	color: #d4d4d4;
+	font-size: 1rem;
 	font-family: monospace;
 	border-radius: 6px;
 	box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
@@ -132,28 +133,51 @@
 <!-- 前端交互脚本 -->
 <script>
 function refreshStatus() {
+	// 首先检查页面上显示的当前状态
+	const currentStatusText = document.getElementById("status-text").textContent.trim();
+
+	// 根据页面显示的状态更新样式
+	updateStatusStyle(currentStatusText);
+
+	// 从服务器获取最新状态
 	fetch('<%=luci.dispatcher.build_url("admin/services/model-update/status")%>')
 		.then(response => response.json())
 		.then(data => {
 			const statusText = document.getElementById("status-text");
-			const statusLabel = document.getElementById("status-label");
-			const banner = document.getElementById("status-banner");
-			const stopBtn = document.getElementById("stop-btn");
 			statusText.textContent = data.status;
-			if (data.status === "运行中") {
-				banner.style.borderLeftColor = "#28a745";
-				banner.style.backgroundColor = "#e6ffed";
-				statusLabel.innerHTML = "🟢 当前状态：<span id='status-text'>" + data.status + "</span>";
-				stopBtn.style.display = "inline-block";
-			} else {
-				banner.style.borderLeftColor = "#007bff";
-				banner.style.backgroundColor = "#f0f8ff";
-				statusLabel.innerHTML = "🔵 当前状态：<span id='status-text'>" + data.status + "</span>";
-				stopBtn.style.display = "none";
-			}
+			// 根据服务器返回的状态更新样式
+			updateStatusStyle(data.status);
 		});
 }
+
+// 状态样式更新
+function updateStatusStyle(status) {
+	const statusLabel = document.getElementById("status-label");
+	const banner = document.getElementById("status-banner");
+	const stopBtn = document.getElementById("stop-btn");
+
+	if (status === "运行中") {
+		banner.style.borderLeftColor = "#28a745";
+		banner.style.backgroundColor = "#e6ffed";
+		statusLabel.innerHTML = "🟢 当前状态：<span id='status-text'>" + status + "</span>";
+		stopBtn.style.display = "inline-block";
+	} else {
+		banner.style.borderLeftColor = "#007bff";
+		banner.style.backgroundColor = "#f0f8ff";
+		statusLabel.innerHTML = "🔵 当前状态：<span id='status-text'>" + status + "</span>";
+		stopBtn.style.display = "none";
+	}
+}
+
+// 页面加载完成后立即执行一次状态检查
+document.addEventListener('DOMContentLoaded', function() {
+	refreshStatus();
+	refreshLog();
+});
+
+// 保持定时刷新
 setInterval(refreshStatus, 5000);
+setInterval(refreshLog, 5000);
 
 function stopUpdate() {
 	if (!confirm("确定要停止当前运行的模型更新吗？")) return;
@@ -171,7 +195,6 @@ function refreshLog() {
 			document.getElementById("log-box").textContent = data.log;
 		});
 }
-setInterval(refreshLog, 5000);
 
 function clearLog() {
 	fetch('<%=luci.dispatcher.build_url("admin/services/model-update/clear")%>')
