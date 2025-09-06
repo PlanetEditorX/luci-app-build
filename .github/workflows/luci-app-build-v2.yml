@@ -1,4 +1,4 @@
-name: LuCI 应用编译 Matrix（OpenWRT 24.10.2）
+name: LuCI编译-Matrix（OpenWRT 24.10.2）
 
 on:
   workflow_dispatch:

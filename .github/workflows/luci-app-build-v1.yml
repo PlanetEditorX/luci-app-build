@@ -1,4 +1,4 @@
-name: LuCI 应用编译 单包（OpenWRT 24.10.2）
+name: LuCI编译-单包（OpenWRT 24.10.2）
 
 on:
   workflow_dispatch:
@@ -93,7 +93,7 @@ jobs:
           cp -r "$GITHUB_WORKSPACE/$PKG_NAME" "package/" || { echo "❌ 复制包文件失败"; exit 1; }
           echo "✅ 包文件复制完成：$PKG_NAME"
 
-      - name: 6. 编译动态识别的luci-app-xxx
+      - name: 6. 编译应用
         run: |
           RUNNER_HOME="/home/runner"
           SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
