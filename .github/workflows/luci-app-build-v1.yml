@@ -1,16 +1,18 @@
-name: LuCI 应用编译-单包（OpenWRT 24.10.2）
+name: LuCI 应用编译 单包（OpenWRT 24.10.2）
 
 on:
-  workflow_dispatch:  # ✅ 手动触发
-  # push:               # ✅ 自动触发
-  #   paths:
-  #     - 'luci-app-*/**'  # ✅ 仅当 luci-app-xxx 目录下文件变动时触发
+  workflow_dispatch:
+    inputs:
+      package:
+        description: '请输入要编译的 LuCI 包名 (不输入则自动编译第一个找到的包)'
+        required: false
+        type: string
 
 jobs:
   build-luci-app:
     runs-on: ubuntu-22.04
     steps:
-      - name: 1. 拉取仓库代码（含luci-app-xxx）
+      - name: 1. 拉取仓库代码
         uses: actions/checkout@v4
 
       - name: 2. 安装编译依赖
@@ -20,18 +22,22 @@ jobs:
             build-essential git wget tar zstd xz-utils \
             python3 python3-dev python3-setuptools swig
 
-      - name: 3. 动态识别仓库中的luci-app-xxx包
-        id: detect-package
+      - name: 3. 动态设置要编译的包名
         run: |
-          ls -l
-          # 从仓库的目录中查找luci-app-*包（支持单个包）
-          PKG_DIR=$(find "$GITHUB_WORKSPACE/" -mindepth 1 -maxdepth 1 -type d -name "luci-app-*" | head -n1)
-          if [ -z "$PKG_DIR" ]; then
-            echo "❌ 未在仓库目录下找到luci-app-*包，请检查仓库结构"; exit 1;
+          PKG_NAME="${{ github.event.inputs.package }}"
+
+          # 如果没有输入包名，则自动查找第一个 luci-app-* 包
+          if [ -z "$PKG_NAME" ]; then
+            PKG_DIR=$(find "$GITHUB_WORKSPACE/" -mindepth 1 -maxdepth 1 -type d -name "luci-app-*" | head -n1)
+            if [ -z "$PKG_DIR" ]; then
+              echo "❌ 未在仓库目录下找到任何luci-app-*包，请检查仓库结构"; exit 1;
+            fi
+            PKG_NAME=$(basename "$PKG_DIR")
+            echo "✅ 未输入包名，自动识别到目标包：$PKG_NAME"
+          else
+            echo "✅ 识别到输入的目标包：$PKG_NAME"
           fi
-          PKG_NAME=$(basename "$PKG_DIR")  # 提取包名（如luci-app-hello）
-          echo "✅ 识别到目标包：$PKG_NAME"
-          # 输出为环境变量，供后续步骤使用
+
           echo "PKG_NAME=$PKG_NAME" >> "$GITHUB_ENV"
 
       - name: 4. 下载并解压 OpenWRT SDK
@@ -64,7 +70,8 @@ jobs:
           SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
           SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
           FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
-          PKG_NAME="${{ env.PKG_NAME }}"  # 从环境变量获取动态包名
+          # 从环境变量获取动态包名
+          PKG_NAME="${{ env.PKG_NAME }}"
 
           # 验证SDK路径
           echo "🔍 准备进入SDK路径：$FULL_SDK_PATH"
@@ -81,9 +88,8 @@ jobs:
           ./scripts/feeds update -a || { echo "❌ Feeds更新失败"; exit 1; }
           ./scripts/feeds install -a || { echo "❌ Feeds安装失败"; exit 1; }
 
-          # 将仓库中的luci-app-xxx复制到SDK的package目录
           echo "🔄 复制仓库中的$PKG_NAME到SDK..."
-          rm -rf "package/$PKG_NAME"  # 清理旧包（若存在）
+          rm -rf "package/$PKG_NAME"
           cp -r "$GITHUB_WORKSPACE/$PKG_NAME" "package/" || { echo "❌ 复制包文件失败"; exit 1; }
           echo "✅ 包文件复制完成：$PKG_NAME"
 
@@ -94,23 +100,19 @@ jobs:
           SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
           OUTPUT_DIR="$RUNNER_HOME/luci-build-ipk"
           FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
-          PKG_NAME="${{ env.PKG_NAME }}"  # 动态包名
+          PKG_NAME="${{ env.PKG_NAME }}"
 
-          # 进入SDK目录
           cd "$FULL_SDK_PATH" || { echo "❌ 进入SDK目录失败"; exit 1; }
 
-          # 补全配置（自动适配当前包的依赖）
           if [ ! -f ".config" ]; then
             make defconfig
           fi
-          echo "CONFIG_PACKAGE_$PKG_NAME=y" >> .config  # 启用当前包
+          echo "CONFIG_PACKAGE_$PKG_NAME=y" >> .config
           make defconfig || { echo "❌ 配置生成失败"; exit 1; }
 
-          # 清理旧产物 + 编译
-          make package/$PKG_NAME/clean V=s || { echo "⚠️  无旧产物可清理"; }
+          make package/$PKG_NAME/clean V=s || { echo "⚠️ 无旧产物可清理"; }
           make package/$PKG_NAME/compile V=s -j1 || { echo "❌ 编译失败"; exit 1; }
 
-          # 查找并复制IPK（动态适配包名）
           mkdir -p "$OUTPUT_DIR"
           ARCH_DIR=$(find "bin/packages/" -maxdepth 1 -type d ! -name "*.ipk" ! -name "packages" | head -n1)
           IPK_PATH=$(find "$ARCH_DIR/" | grep "$PKG_NAME")
@@ -120,10 +122,10 @@ jobs:
           cp -f "$IPK_PATH" "$OUTPUT_DIR/"
           echo "✅ 编译完成！IPK路径：$OUTPUT_DIR/$(basename $IPK_PATH)"
 
-      - name: 7. 上传编译产物（含动态包名）
+      - name: 7. 上传编译产物
         uses: actions/upload-artifact@v4
         with:
-          name: "${{ env.PKG_NAME }}-ipk"  # 产物名包含动态包名
+          name: "${{ env.PKG_NAME }}-ipk"
           path: /home/runner/luci-build-ipk/${{ env.PKG_NAME }}_*.ipk
           retention-days: 30
 
@@ -137,6 +139,5 @@ jobs:
           files: /home/runner/luci-build-ipk/*.ipk
           body: |
             🎉 自动编译完成！
-            包列表：${{ env.PKG_LIST }}
+            包名：${{ env.PKG_NAME }}
             时间：${{ github.event.head_commit.timestamp || github.run_started_at }}
-
