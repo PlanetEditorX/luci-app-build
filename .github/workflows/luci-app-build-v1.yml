@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: '请输入要编译的 LuCI 包名 (不输入则自动编译第一个找到的包)'
-        required: false
-        type: string
+        description: '请选择要编译的 LuCI 包'
+        required: true
+        type: choice
+        options:
+          # - luci-app-hello
+          - luci-app-keepalived-ha
+          - luci-app-model-update
       verbose:
         description: '是否输出详细编译日志（V=s）'
         required: false
