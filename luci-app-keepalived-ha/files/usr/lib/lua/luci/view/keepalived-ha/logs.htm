@@ -1,14 +1,16 @@
 <%+header%>
 <style>
     .log-container {
-        background-color: #f5f5f5;
+        background-color: #2c2c2c;
+        color: #dcdcdc;
         border-radius: 4px;
         padding: 1em;
         margin: 1em 0;
         max-height: 600px;
         overflow-y: auto;
+        font-size: 0.9rem;
         font-family: monospace;
-        white-space: pre-wrap;
+        /* white-space: pre-wrap; */
         line-height: 1.5;
     }
     .log-controls {
@@ -55,9 +57,12 @@
 
         xhr.onload = function() {
             if (xhr.status === 200) {
-                document.getElementById(`${logType}_log`).textContent = xhr.responseText || '<%:未找到相关日志%>';
-            } else {
-                document.getElementById(`${logType}_log`).textContent = '<%:日志加载失败: %>' + xhr.statusText;
+                let raw = xhr.responseText;
+                // 按星期开头拆分日志
+                let lines = raw.split(/(?=Mon|Tue|Wed|Thu|Fri|Sat|Sun)/);
+                // 添加换行符
+                let formatted = lines.map(line => line.trim()).join('<br>');
+                document.getElementById(`${logType}_log`).innerHTML = formatted || '未找到相关日志';
             }
         };
 
