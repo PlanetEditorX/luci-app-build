@@ -59,8 +59,6 @@ jobs:
           SDK_TAR="openwrt-sdk-24.10.2.tar.zst"
           SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
 
-          # 🚨 移除 SDK_FOLDER 的硬编码定义
-
           mkdir -p "$SDK_DIR" && cd "$SDK_DIR"
           echo "🔍 当前SDK目录：$SDK_DIR"
           if [ ! -f "$SDK_TAR" ]; then
@@ -97,7 +95,7 @@ jobs:
 
           # Feeds 优化：移除 base 仓库，只保留 packages 和 luci
           > feeds.conf.default
-          # echo 'src-git base https://github.com/openwrt/openwrt.git;openwrt-24.10' >> feeds.conf.default
+          echo 'src-git base https://github.com/openwrt/openwrt.git;openwrt-24.10' >> feeds.conf.default
           echo 'src-git packages https://github.com/openwrt/packages.git;master' >> feeds.conf.default
           echo 'src-git luci https://github.com/openwrt/luci.git;openwrt-24.10' >> feeds.conf.default
 
