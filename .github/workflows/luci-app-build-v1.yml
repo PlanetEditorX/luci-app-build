@@ -52,15 +52,15 @@ jobs:
 
           echo "PKG_NAME=$PKG_NAME" >> "$GITHUB_ENV"
 
-      - name:  4️⃣ 下载并解压 OpenWRT SDK
+      - name: 4️⃣ 下载并解压 OpenWRT SDK
         run: |
           RUNNER_HOME="/home/runner"
           SDK_URL="https://downloads.openwrt.org/releases/24.10.2/targets/mediatek/filogic/openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
           SDK_TAR="openwrt-sdk-24.10.2.tar.zst"
           SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
-          SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
 
-          # 创建SDK目录并下载
+          # 🚨 移除 SDK_FOLDER 的硬编码定义
+
           mkdir -p "$SDK_DIR" && cd "$SDK_DIR"
           echo "🔍 当前SDK目录：$SDK_DIR"
           if [ ! -f "$SDK_TAR" ]; then
@@ -68,35 +68,39 @@ jobs:
           fi
 
           # 解压SDK
-          if [ ! -d "$SDK_FOLDER" ]; then
-            zstd -d "$SDK_TAR" && tar -xf "${SDK_TAR%.zst}" || { echo "❌ SDK解压失败"; exit 1; }
+          if [ ! -f "${SDK_TAR%.zst}" ]; then
+            zstd -d "$SDK_TAR" || { echo "❌ ZSTD解压失败"; exit 1; }
           fi
-          if [ ! -d "$SDK_DIR/$SDK_FOLDER" ]; then
-            echo "❌ SDK解压后路径不存在：$SDK_DIR/$SDK_FOLDER"; exit 1;
+          # 🌟 动态解压并查找文件夹名
+          tar -xf "${SDK_TAR%.zst}" || { echo "❌ TAR解压失败"; exit 1; }
+
+          # 🌟 动态查找解压后生成的目录名 (通常是唯一的一个)
+          SDK_FOLDER=$(find . -maxdepth 1 -type d -name "openwrt-sdk-*" -print -quit)
+
+          if [ -z "$SDK_FOLDER" ] || [ ! -d "$SDK_FOLDER" ]; then
+            echo "❌ SDK解压后路径不存在！"; ls -l .; exit 1;
           fi
-          echo "✅ SDK解压完成，路径：$SDK_DIR/$SDK_FOLDER"
+
+          FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER" # 动态组合完整路径
+          echo "✅ SDK解压完成，路径：$FULL_SDK_PATH"
+          echo "FULL_SDK_PATH=$FULL_SDK_PATH" >> "$GITHUB_ENV" # 导出到环境
 
       - name: 5️⃣ 复制仓库中的luci-app-xxx到SDK并初始化Feeds
         run: |
-          RUNNER_HOME="/home/runner"
-          SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
-          SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
-          FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
+          FULL_SDK_PATH="${{ env.FULL_SDK_PATH }}" # 直接使用环境中的路径
           # 从环境变量获取动态包名
           PKG_NAME="${{ env.PKG_NAME }}"
 
           # 验证SDK路径
           echo "🔍 准备进入SDK路径：$FULL_SDK_PATH"
-          if [ ! -d "$FULL_SDK_PATH" ]; then
-            echo "❌ SDK路径不存在！当前目录下文件："; ls -l "$SDK_DIR"; exit 1;
-          fi
           cd "$FULL_SDK_PATH" || { echo "❌ 进入SDK目录失败"; exit 1; }
 
-          # 初始化Feeds
+          # Feeds 优化：移除 base 仓库，只保留 packages 和 luci
           > feeds.conf.default
-          echo 'src-git base https://github.com/openwrt/openwrt.git;openwrt-24.10' >> feeds.conf.default
+          # echo 'src-git base https://github.com/openwrt/openwrt.git;openwrt-24.10' >> feeds.conf.default
           echo 'src-git packages https://github.com/openwrt/packages.git;master' >> feeds.conf.default
           echo 'src-git luci https://github.com/openwrt/luci.git;openwrt-24.10' >> feeds.conf.default
+
           ./scripts/feeds update -a || { echo "❌ Feeds更新失败"; exit 1; }
           ./scripts/feeds install -a || { echo "❌ Feeds安装失败"; exit 1; }
 
@@ -107,11 +111,8 @@ jobs:
 
       - name: 6️⃣ 编译应用
         run: |
-          RUNNER_HOME="/home/runner"
-          SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
-          SDK_FOLDER="openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64"
-          OUTPUT_DIR="$RUNNER_HOME/luci-build-ipk"
-          FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
+          FULL_SDK_PATH="${{ env.FULL_SDK_PATH }}" # 直接使用环境中的路径
+          OUTPUT_DIR="/home/runner/luci-build-ipk" # 直接使用绝对路径
           PKG_NAME="${{ env.PKG_NAME }}"
 
           VERBOSE_FLAG=""
@@ -121,21 +122,20 @@ jobs:
 
           cd "$FULL_SDK_PATH" || { echo "❌ 进入SDK目录失败"; exit 1; }
 
-          if [ ! -f ".config" ]; then
-            make defconfig
-          fi
           echo "CONFIG_PACKAGE_$PKG_NAME=y" >> .config
           make defconfig || { echo "❌ 配置生成失败"; exit 1; }
 
           make package/$PKG_NAME/clean $VERBOSE_FLAG || { echo "⚠️ 无旧产物可清理"; }
-          make package/$PKG_NAME/compile $VERBOSE_FLAG -j1 || { echo "❌ 编译失败"; exit 1; }
+          make package/$PKG_NAME/compile $VERBOSE_FLAG -j$(nproc) || { echo "❌ 编译失败"; exit 1; }
 
           mkdir -p "$OUTPUT_DIR"
           ARCH_DIR=$(find "bin/packages/" -maxdepth 1 -type d ! -name "*.ipk" ! -name "packages" | head -n1)
-          IPK_PATH=$(find "$ARCH_DIR/" | grep "$PKG_NAME")
+          IPK_PATH=$(find "$ARCH_DIR/" -name "*$PKG_NAME*.ipk" | head -n1)
+
           if [ -z "$IPK_PATH" ]; then
-            echo "❌ 未找到$PKG_NAME的IPK文件"; exit 1;
+            echo "❌ 未找到$PKG_NAME的IPK文件，检查 $ARCH_DIR 目录..."; ls -l "$ARCH_DIR"; exit 1;
           fi
+
           cp -f "$IPK_PATH" "$OUTPUT_DIR/"
           echo "✅ 编译完成！IPK路径：$OUTPUT_DIR/$(basename $IPK_PATH)"
 
