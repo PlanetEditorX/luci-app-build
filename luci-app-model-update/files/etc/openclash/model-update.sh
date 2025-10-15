@@ -16,6 +16,8 @@ log_message() {
     logger -t model-update "$msg"
 }
 
+trap 'log_message "--- Script finished with exit code $? ---"' EXIT
+
 if [ -z "$GIT_PATH" ]; then
     log_message "未设置 Git 仓库地址，请先配置 model-update.config.git_path"
     exit 1
@@ -35,7 +37,6 @@ fi
 
 if [ "$FILE_SIZE_B" -le 10240 ]; then
     log_message "File size is <= 10KB. No action needed. Exiting."
-	log_message "--- Script finished ---"
     exit 0
 fi
 
@@ -119,5 +120,3 @@ if pgrep -f "openclash" >/dev/null; then
 else
     log_message "OpenClash service is not running. Skipping restart."
 fi
-
-log_message "--- Script finished ---"
