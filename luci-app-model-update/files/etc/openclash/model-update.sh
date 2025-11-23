@@ -81,7 +81,7 @@ log_message "Pushing local changes to remote repository..."
 git push >> "$LOG_FILE" 2>&1
 
 # --- 再次拉取更新 ---
-sleep 120
+sleep 300
 log_message "Pulling latest changes again..."
 SECOND_PULL_SUCCESS=0
 for i in $(seq 1 3); do
