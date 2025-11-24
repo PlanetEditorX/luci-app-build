@@ -71,6 +71,33 @@
 					<option value="0 0 * * 0" <%=cron_schedule == "0 0 * * 0" and "selected" or ""%>>每周日凌晨</option>
 				</select>
 			</div>
+
+			<!-- 拉取时间 -->
+			<div class="cbi-value" style="display:flex; align-items:center; gap:10px; margin-bottom:16px; padding-bottom:8px; border-bottom: 1px solid #eee; max-width: 50rem;">
+				<label for="pull_time" style="min-width:120px;">拉取模型时间：</label>
+				<select id="pull_time" name="pull_time" style="flex:1;">
+					<option value="1" <%=pull_time == "1" and "selected" or ""%>>1 分钟</option>
+					<option value="2" <%=pull_time == "2" and "selected" or ""%>>2 分钟</option>
+					<option value="3" <%=pull_time == "3" and "selected" or ""%>>3 分钟</option>
+					<option value="4" <%=pull_time == "4" and "selected" or ""%>>4 分钟</option>
+					<option value="5" <%=pull_time == "5" and "selected" or ""%>>5 分钟</option>
+					<option value="6" <%=pull_time == "6" and "selected" or ""%>>6 分钟</option>
+					<option value="7" <%=pull_time == "7" and "selected" or ""%>>7 分钟</option>
+					<option value="8" <%=pull_time == "8" and "selected" or ""%>>8 分钟</option>
+					<option value="9" <%=pull_time == "9" and "selected" or ""%>>9 分钟</option>
+					<option value="10" <%=pull_time == "10" and "selected" or ""%>>10 分钟</option>
+					<option value="11" <%=pull_time == "11" and "selected" or ""%>>11 分钟</option>
+					<option value="12" <%=pull_time == "12" and "selected" or ""%>>12 分钟</option>
+					<option value="13" <%=pull_time == "13" and "selected" or ""%>>13 分钟</option>
+					<option value="14" <%=pull_time == "14" and "selected" or ""%>>14 分钟</option>
+					<option value="15" <%=pull_time == "15" and "selected" or ""%>>15 分钟</option>
+					<option value="16" <%=pull_time == "16" and "selected" or ""%>>16 分钟</option>
+					<option value="17" <%=pull_time == "17" and "selected" or ""%>>17 分钟</option>
+					<option value="18" <%=pull_time == "18" and "selected" or ""%>>18 分钟</option>
+					<option value="19" <%=pull_time == "19" and "selected" or ""%>>19 分钟</option>
+					<option value="20" <%=pull_time == "20" and "selected" or ""%>>20 分钟</option>
+				</select>
+			</div>
 		</fieldset>
 
 		<!-- 操作按钮 -->

@@ -8,6 +8,8 @@ OPENCLASH_INIT_SCRIPT="/etc/init.d/openclash"
 LOG_FILE="/var/log/model-update.log"
 GIT_DIR="/tmp/openclash"
 GIT_PATH=$(uci get model-update.config.git_path 2>/dev/null)
+PULL_TIME="${PULL_TIME:-$(uci get model-update.config.pull_time 2>/dev/null)}"
+PULL_TIME="${PULL_TIME:-5}"
 
 # 函数：记录日志
 log_message() {
@@ -22,6 +24,8 @@ if [ -z "$GIT_PATH" ]; then
     log_message "未检测到 Git设置，请先在终端手动配置好后将参数填入页面"
     exit 1
 fi
+
+log_message "Pull Time set to: $PULL_TIME minutes."
 
 log_message "--- Script started ---"
 
@@ -94,7 +98,7 @@ log_message "Pushing local changes to remote repository..."
 git push >> "$LOG_FILE" 2>&1
 
 # --- 再次拉取更新 ---
-sleep 300
+sleep $PULL_TIME
 log_message "Pulling latest changes again..."
 SECOND_PULL_SUCCESS=0
 for i in $(seq 1 3); do

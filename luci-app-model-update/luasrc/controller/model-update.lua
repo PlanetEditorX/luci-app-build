@@ -49,50 +49,62 @@ function action_index()
     local form_git_path = http.formvalue("git_path")
     local form_git_user = http.formvalue("git_user")
     local form_git_email = http.formvalue("git_email")
+    local form_schedule   = http.formvalue("preset_schedule") -- 定时任务
+    local form_pull_time  = http.formvalue("pull_time")       -- 拉取时间
 
-    local git_path = (form_git_path and form_git_path ~= "") and form_git_path or uci:get("model-update", "config", "git_path")
-    local git_user = uci:get("model-update", "config", "git_user") or sys.exec("git config --global user.name"):gsub("\n", "")
-    local git_email = uci:get("model-update", "config", "git_email") or sys.exec("git config --global user.email"):gsub("\n", "")
+    local git_path        = (form_git_path and form_git_path ~= "") and form_git_path or uci:get("model-update", "config", "git_path")
+    local git_user        = (form_git_user and form_git_user ~= "") and form_git_user or uci:get("model-update", "config", "git_user") or sys.exec("git config --global user.name"):gsub("\n", "")
+    local git_email       = (form_git_email and form_git_email ~= "") and form_git_email or uci:get("model-update", "config", "git_email") or sys.exec("git config --global user.email"):gsub("\n", "")
+    local cron_schedule   = (form_schedule ~= nil) and form_schedule or uci:get("model-update", "config", "cron_schedule")
+    local pull_time       = (form_pull_time and form_pull_time ~= "") and form_pull_time or uci:get("model-update", "config", "pull_time") or "5"
 
     local error_msg = nil
-
     if not git_path or git_path == "" then
         error_msg = { message = "请先设置 Git 仓库地址" }
     end
 
+    -- ====================================================================
+    -- 🚀 统一配置保存 (Set)
+    -- ====================================================================
+    local changes_made = false
+
     if form_git_path then
-        if not uci:get("model-update", "config", "git_path") then
-            uci:section("model-update", "config", "config", { git_path = git_path })
-        else
-            uci:set("model-update", "config", "git_path", git_path)
+        -- 确保 section 存在
+        if not uci:get("model-update", "config") then
+            uci:section("model-update", "config", "config")
         end
+        uci:set("model-update", "config", "git_path", git_path)
+        changes_made = true
     end
 
     if form_git_user then
         uci:set("model-update", "config", "git_user", form_git_user)
-        git_user = form_git_user
         sys.call("git config --global user.name '" .. form_git_user:gsub("'", "") .. "'")
+        changes_made = true
     end
 
     if form_git_email then
         uci:set("model-update", "config", "git_email", form_git_email)
-        git_email = form_git_email
         sys.call("git config --global user.email '" .. form_git_email:gsub("'", "") .. "'")
+        changes_made = true
     end
-
-    if form_git_path or form_git_user or form_git_email then
-        uci:commit("model-update")
-    end
-
-    local form_schedule = http.formvalue("preset_schedule")
-    local cron_schedule = uci:get("model-update", "config", "cron_schedule")
 
     if form_schedule ~= nil then
         uci:set("model-update", "config", "cron_schedule", form_schedule)
-        uci:commit("model-update")
-        cron_schedule = form_schedule
+        changes_made = true
     end
 
+    if form_pull_time then
+        uci:set("model-update", "config", "pull_time", form_pull_time)
+        changes_made = true
+    end
+
+    -- 只有当任意配置项被修改时，才执行一次提交
+    if changes_made then
+        uci:commit("model-update")
+    end
+
+    -- SSH 公钥生成
     local pubkey = nil
     if fs.access("/root/.ssh/id_rsa.pub") then
         pubkey = fs.readfile("/root/.ssh/id_rsa.pub")
@@ -120,6 +132,7 @@ function action_index()
         sys.call("(GIT_PATH='" .. git_path ..
             "' GIT_AUTHOR_NAME='" .. (git_user or "") ..
             "' GIT_AUTHOR_EMAIL='" .. (git_email or "") ..
+            "' PULL_TIME='" .. (pull_time or "5") ..
             "' /etc/init.d/model-update restart) &")
         http.redirect(dispatcher.build_url("admin/services/model-update"))
         return
@@ -133,7 +146,8 @@ function action_index()
         git_email = git_email,
         error_msg = error_msg,
         pubkey = pubkey,
-        cron_schedule = cron_schedule
+        cron_schedule = cron_schedule,
+        pull_time = pull_time
     })
 end
 
