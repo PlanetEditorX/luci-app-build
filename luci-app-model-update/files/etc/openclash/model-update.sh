@@ -19,17 +19,30 @@ log_message() {
 trap 'log_message "--- Script finished with exit code $? ---"' EXIT
 
 if [ -z "$GIT_PATH" ]; then
-    log_message "未设置 Git 仓库地址，请先配置 model-update.config.git_path"
+    log_message "未检测到 Git设置，请先在终端手动配置好后将参数填入页面"
     exit 1
 fi
 
 log_message "--- Script started ---"
 
 # --- 检查文件大小 ---
+easy_size() {
+    local size=$1
+    if [ "$size" -lt 1024 ]; then
+        echo "${size}B"
+    elif [ "$size" -lt $((1024*1024)) ]; then
+        echo "$((size/1024))KB"
+    elif [ "$size" -lt $((1024*1024*1024)) ]; then
+        echo "$((size/1024/1024))MB"
+    else
+        echo "$((size/1024/1024/1024))GB"
+    fi
+}
 SMART_WEIGHT_FILE="$OPENCLASH_DIR/smart_weight_data.csv"
 if [ -f "$SMART_WEIGHT_FILE" ]; then
-    FILE_SIZE_B=$(ls -l "$SMART_WEIGHT_FILE" | awk '{print $5}')
-    log_message "File size of $SMART_WEIGHT_FILE is $FILE_SIZE_B bytes."
+    FILE_SIZE_B=$(stat -c%s "$SMART_WEIGHT_FILE")
+    FILE_SIZE_H=$(easy_size "$FILE_SIZE_B")
+    log_message "File size of $SMART_WEIGHT_FILE is $FILE_SIZE_H."
 else
     log_message "File $SMART_WEIGHT_FILE does not exist. Exiting."
     exit 0
