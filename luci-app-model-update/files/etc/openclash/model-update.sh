@@ -32,19 +32,22 @@ log_message "--- Script started ---"
 # --- 检查文件大小 ---
 easy_size() {
     local size=$1
-    if [ "$size" -lt 1024 ]; then
-        echo "${size}B"
-    elif [ "$size" -lt $((1024*1024)) ]; then
-        echo "$((size/1024))KB"
-    elif [ "$size" -lt $((1024*1024*1024)) ]; then
-        echo "$((size/1024/1024))MB"
-    else
-        echo "$((size/1024/1024/1024))GB"
-    fi
+    echo "$size" | awk '
+    {
+        if ($1 < 1024) {
+            printf "%.0fB", $1
+        } else if ($1 < 1024*1024) {
+            printf "%.0fKB", $1/1024
+        } else if ($1 < 1024*1024*1024) {
+            printf "%.1fMB", $1/(1024*1024)
+        } else {
+            printf "%.2fGB", $1/(1024*1024*1024)
+        }
+    }'
 }
 SMART_WEIGHT_FILE="$OPENCLASH_DIR/smart_weight_data.csv"
 if [ -f "$SMART_WEIGHT_FILE" ]; then
-    FILE_SIZE_B=$(stat -c%s "$SMART_WEIGHT_FILE")
+    FILE_SIZE_B=$(wc -c < "$SMART_WEIGHT_FILE" | awk '{print $1}')
     FILE_SIZE_H=$(easy_size "$FILE_SIZE_B")
     log_message "File size of $SMART_WEIGHT_FILE is $FILE_SIZE_H."
 else

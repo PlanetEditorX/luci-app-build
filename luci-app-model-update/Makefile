@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-model-update
-PKG_VERSION:=1.2
+PKG_VERSION:=1.3
 PKG_RELEASE:=1
 
 PKG_BUILD_DIR := $(BUILD_DIR)/$(PKG_NAME)
@@ -12,12 +12,23 @@ define Package/$(PKG_NAME)
 	SECTION:=utils
 	CATEGORY:=Utilities
 	TITLE:=Model Update Script with LuCI
-	DEPENDS:=+luci-base +bash +git
+	DEPENDS:=+luci-base +bash +git +git-lfs +openssh-client +openssh-keygen +yq
 	PKGARCH:=all
 endef
 
+# 安装后执行的脚本
+define Package/$(PKG_NAME)/postinst
+#!/bin/sh
+if [ -x /usr/bin/git-lfs ]; then
+    echo "Initializing git-lfs..."
+    git lfs install || true
+fi
+exit 0
+endef
+
 define Package/$(PKG_NAME)/description
-	Auto update model and control via LuCI web interface.
+LuCI interface for model update script.
+Includes dependencies: git, git-lfs, openssh-client, openssh-keygen, yq.
 endef
 
 define Build/Compile
