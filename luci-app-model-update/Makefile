@@ -21,7 +21,7 @@ define Package/$(PKG_NAME)/postinst
 #!/bin/sh
 if [ -x /usr/bin/git-lfs ]; then
     echo "Initializing git-lfs..."
-    git lfs install || true
+    git lfs install --system --force || true
 fi
 exit 0
 endef
