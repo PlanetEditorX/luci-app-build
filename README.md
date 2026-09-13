@@ -59,6 +59,47 @@ apk add luci-lua-runtime luci-compat
 如果希望装包即生效，可在应用的 `Makefile` 的 `DEPENDS` 里补上
 `+luci-lua-runtime +luci-compat`（两个版本分支的 feed 里都存在这两个包，已实测）。
 
+## ⚡ 编译速度：为什么以前要 20 分钟，现在 1 分钟
+
+### 根因
+`make package/<包名>/compile` 不是"只编这个包"——它会顺着 `DEPENDS` 把**整条依赖链从头编译**。
+旧 Makefile 里依赖都写成 `+xxx` 形式，`+` 在 OpenWrt 里的含义是「**自动选中并编译**」：
+
+| 你的依赖 | 带 `+` 时会连带编译 | 代价 |
+|---|---|---|
+| `+yq` | `PKG_BUILD_DEPENDS:=golang/host` | **编 Go 工具链，整条链里最慢的一段** |
+| `+git-lfs` | 同上，`golang/host` | 再编一遍 Go 工具链 |
+| `+git` | `+libopenssl` | **openssl 全量编译** |
+| `+keepalived` | openssl、libnl 等 | 又是 openssl |
+| `+ip-full` | iproute2 | 日志里 `iproute2 clean-build/compile` 反复出现 |
+| `+nftables` | libnftnl / libmnl / libgmp | C 库串联编译 |
+| `+luci-base` | rpcd / libubox / ubus / uci / ucode … | 一大片 base 包 |
+
+这些包编完**全被丢弃**——CI 只把 `*<你的包名>*.ipk|apk` 复制出来上传，依赖产物一个都不带走。
+所以那 20 分钟是 100% 白干。
+
+### 修法：依赖去掉 `+`
+`+` 号只影响「要不要自动选中」，**不影响写进包元数据的 `Depends` 字段**（源码依据
+`include/package-pack.mk`：`strip_deps=$(strip $(subst +,,$(filter-out @%,$(1))))`，
+`Depends` 字段由 `addfield,Depends` 生成，`+` 已被剥掉）。
+所以去掉 `+` 后：
+
+- ✅ 依赖**照旧写进** ipk/apk 的 `Depends`（安装到设备时 `opkg`/`apk` 会自动从官方源拉取）
+- ✅ 编译时**不再连带编译**这些依赖，出包阶段从 20+ 分钟降到几分钟
+  （剩下的只有 SDK 准备 + `luci.mk` 自己要求的宿主工具 `lua/host`、`luci-base/host`）
+- ⚠️ 设备端安装时需要能访问官方软件源（正常 OpenWrt 都有）
+
+两个应用的 `DEPENDS` 都已按此调整。确实需要连依赖一起编译（例如做离线固件）时，
+把名字前面加回 `+` 即可。
+
+### 顺带说明
+- **base feed 不能删**：SDK 只自带 `package/Makefile`、`package/libs/toolchain`、
+  `package/kernel/linux`，`nftables` / `openssh` / `bash` 等都得靠 `src-git base`
+  这条 feed 提供（`target/sdk/Makefile` 里 `BASE_FEED` 的定义可证）。
+  删掉会让这些依赖变成"unknown dependency"，元数据里的 `Depends` 会被静默丢弃。
+- 本仓库用的是**纯脚本包**（`Build/Compile` 为空），包本身编译耗时接近 0，
+  所以耗时几乎全在依赖和 SDK/feeds 准备上。
+
 ## 常见问题
 - **编译成功但找不到产物**：工作流用通配符 `find bin/packages -name "*<pkg>*.apk"` 查找，
   失败时会把该包的所有产物列出来。注意 apk 文件名不带架构后缀（`PKGARCH:=all` → `arch:noarch`）。

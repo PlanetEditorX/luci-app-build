@@ -12,7 +12,13 @@ define Package/$(PKG_NAME)
 	SECTION:=utils
 	CATEGORY:=Utilities
 	TITLE:=Model Update Script with LuCI
-	DEPENDS:=+luci-base +bash +git +git-lfs +openssh-client +openssh-keygen +yq
+	# ⚡ 依赖不带 "+"：依赖照样写进包元数据的 Depends 字段（设备端安装时会自动拉取），
+	#    但编译本包时【不会】连带编译它们。
+	#    带 "+" 的话会连带编译：git → libopenssl（openssl 全量编译）、
+	#    yq / git-lfs → golang/host（Go 工具链，整条链里最慢的一段），实测 20 分钟以上，
+	#    而且这些依赖包最后全被丢弃（CI 只上传本包的 ipk/apk），纯属白干。
+	#    确实需要连依赖一起编译时，把下面的名字前面加回 "+" 即可。
+	DEPENDS:=luci-base bash git git-lfs openssh-client openssh-keygen yq
 	PKGARCH:=all
 endef
 

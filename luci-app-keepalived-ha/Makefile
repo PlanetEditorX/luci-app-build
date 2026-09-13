@@ -13,7 +13,13 @@ define Package/$(PKG_NAME)
 	CATEGORY:=LuCI
 	SUBMENU:=9. Services
 	TITLE:=Keepalived High Availability
-	DEPENDS:=+keepalived +nftables +ip-full +procps-ng-pkill +tcpdump
+	# ⚡ 依赖不带 "+"：依赖照样写进包元数据的 Depends 字段（设备端安装时会自动拉取），
+	#    但编译本包时【不会】连带编译它们。
+	#    带 "+" 的话 OpenWrt 会把整条依赖链从头编译：keepalived → openssl、
+	#    ip-full → iproute2、nftables → libnftnl/libmnl... 实测要 20 分钟以上，
+	#    而且这些依赖包最后全被丢弃（CI 只上传本包的 ipk/apk），纯属白干。
+	#    确实需要连依赖一起编译时，把下面的名字前面加回 "+" 即可。
+	DEPENDS:=keepalived nftables ip-full procps-ng-pkill tcpdump
 	PKGARCH:=all
 endef
 
