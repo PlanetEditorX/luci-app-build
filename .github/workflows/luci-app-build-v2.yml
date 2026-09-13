@@ -1,8 +1,31 @@
-name: LuCI编译-Matrix（OpenWRT 24.10.2）
+name: LuCI编译-Matrix（OpenWRT 24.10.2 ipk + 25.12.5 apk）
+
+# ============================================================================
+# 双格式编译说明
+#   ipk → OpenWrt 24.10.x 及更早（opkg）     SDK: 24.10.2 / feed: openwrt-24.10
+#   apk → OpenWrt 25.12.x 及更新（apk-tools v3，默认 CONFIG_USE_APK=y）
+#                                        SDK: 25.12.5 / feed: openwrt-25.12
+#
+# 关键差异（编译侧）：
+#   1. 必须换 SDK —— 24.10 SDK 只能产出 ipk，25.12 SDK 只能产出 apk
+#   2. 产物后缀与命名不同：
+#        ipk: luci-app-xxx_1.0-r1_all.ipk   （下划线 + 架构）
+#        apk: luci-app-xxx-1.0-r1.apk       （连字符，无架构后缀）
+#   3. 所以两个 job 的产物查找都用通配符匹配，不拼死文件名
+# ============================================================================
 
 on:
   workflow_dispatch:
     inputs:
+      variant:
+        description: '编译哪些包格式'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - ipk
+          - apk
       verbose:
         description: '是否输出详细编译日志（V=s）'
         required: false
@@ -20,6 +43,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.pkg_matrix }}
+      variants: ${{ steps.set-variants.outputs.variants }}
     steps:
       - name: 1️⃣ Checkout 仓库
         uses: actions/checkout@v4
@@ -50,12 +74,26 @@ jobs:
           echo "✅ Matrix JSON: $MATRIX_JSON"
           echo "pkg_matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
 
+      - name: 3️⃣ 解析要编译的包格式
+        id: set-variants
+        run: |
+          case "${{ github.event.inputs.variant }}" in
+            ipk) V='["ipk"]' ;;
+            apk) V='["apk"]' ;;
+            *)   V='["ipk","apk"]' ;;
+          esac
+          echo "✅ 本次编译格式: $V"
+          echo "variants=$V" >> $GITHUB_OUTPUT
+
   build:
     needs: detect
     runs-on: ubuntu-22.04
     strategy:
-      matrix: ${{ fromJson(needs.detect.outputs.matrix) }}
-    name: 编译 ${{ matrix.pkg }}
+      fail-fast: false
+      matrix:
+        pkg: ${{ fromJson(needs.detect.outputs.matrix).pkg }}
+        variant: ${{ fromJson(needs.detect.outputs.variants) }}
+    name: 编译 ${{ matrix.pkg }} (${{ matrix.variant }})
     steps:
       - name: 1️⃣ Checkout 仓库
         uses: actions/checkout@v4
@@ -66,14 +104,40 @@ jobs:
           sudo apt install -y \
             build-essential git wget tar zstd xz-utils \
             python3 python3-dev python3-setuptools swig
+          # 25.12 SDK 的宿主工具链额外需要（24.10 下装多了也无害）
+          sudo apt install -y file gawk gettext libelf-dev libssl-dev rsync unzip || true
 
-      - name: 3️⃣ 下载并解压 OpenWRT SDK (动态路径查找)
+      - name: 3️⃣ 解析 SDK 地址与 Feed 分支
+        id: resolve
+        run: |
+          case "${{ matrix.variant }}" in
+            ipk)
+              SDK_URL="https://downloads.openwrt.org/releases/24.10.2/targets/mediatek/filogic/openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
+              FEED_BRANCH="openwrt-24.10"
+              echo "PKG_EXT=ipk" >> "$GITHUB_ENV"
+              ;;
+            apk)
+              # 25.12.x 起 OpenWrt 默认使用 apk（CONFIG_USE_APK=y），产物为 .apk
+              SDK_URL="https://downloads.openwrt.org/releases/25.12.5/targets/mediatek/filogic/openwrt-sdk-25.12.5-mediatek-filogic_gcc-14.3.0_musl.Linux-x86_64.tar.zst"
+              FEED_BRANCH="openwrt-25.12"
+              echo "PKG_EXT=apk" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "❌ 未知包格式：${{ matrix.variant }}"; exit 1 ;;
+          esac
+
+          echo "🔧 格式=${{ matrix.variant }} | Feed分支=$FEED_BRANCH"
+          echo "🔗 SDK=$SDK_URL"
+          echo "SDK_URL=$SDK_URL"       >> "$GITHUB_ENV"
+          echo "FEED_BRANCH=$FEED_BRANCH" >> "$GITHUB_ENV"
+
+      - name: 4️⃣ 下载并解压 OpenWRT SDK
         id: sdk-setup
         run: |
           RUNNER_HOME="/home/runner"
-          SDK_URL="https://downloads.openwrt.org/releases/24.10.2/targets/mediatek/filogic/openwrt-sdk-24.10.2-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-          SDK_TAR="openwrt-sdk-24.10.2.tar.zst"
-          SDK_DIR="$RUNNER_HOME/openwrt-sdk-filogic"
+          SDK_URL="${{ env.SDK_URL }}"
+          SDK_TAR="openwrt-sdk-${{ matrix.variant }}.tar.zst"
+          SDK_DIR="$RUNNER_HOME/openwrt-sdk-${{ matrix.variant }}"
 
           mkdir -p "$SDK_DIR" && cd "$SDK_DIR"
           echo "🔍 当前SDK目录：$SDK_DIR"
@@ -99,14 +163,16 @@ jobs:
 
           FULL_SDK_PATH="$SDK_DIR/$SDK_FOLDER"
           echo "✅ SDK解压完成，路径：$FULL_SDK_PATH"
-          echo "FULL_SDK_PATH=$FULL_SDK_PATH" >> "$GITHUB_ENV" # 导出到环境
+          echo "FULL_SDK_PATH=$FULL_SDK_PATH" >> "$GITHUB_ENV"
 
-      - name: 4️⃣ 编译 ${{ matrix.pkg }}
+      - name: 5️⃣ 配置 Feeds 并编译 ${{ matrix.pkg }}
         run: |
           FULL_SDK_PATH="${{ env.FULL_SDK_PATH }}"
-          # 每个包的输出目录独立，避免冲突
-          OUTPUT_DIR="/home/runner/luci-build-ipk/${{ matrix.pkg }}"
+          # 每个包 + 每种格式的输出目录独立，避免冲突
+          OUTPUT_DIR="/home/runner/luci-build/${{ matrix.pkg }}-${{ matrix.variant }}"
           PKG_NAME="${{ matrix.pkg }}"
+          PKG_EXT="${{ env.PKG_EXT }}"
+          FEED_BRANCH="${{ env.FEED_BRANCH }}"
 
           VERBOSE_FLAG=""
           if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
@@ -115,11 +181,12 @@ jobs:
 
           cd "$FULL_SDK_PATH" || { echo "❌ 进入SDK目录失败"; exit 1; }
 
-          # 🌟 Feeds 配置：恢复 base feed 以确保依赖完整
+          # 🌟 Feeds 配置：按格式选择匹配的 feed 分支，版本不对会把上游依赖拉崩
           > feeds.conf.default
-          echo 'src-git base https://github.com/openwrt/openwrt.git;openwrt-24.10' >> feeds.conf.default
-          echo 'src-git packages https://github.com/openwrt/packages.git;master' >> feeds.conf.default
-          echo 'src-git luci https://github.com/openwrt/luci.git;openwrt-24.10' >> feeds.conf.default
+          echo "src-git base https://github.com/openwrt/openwrt.git;$FEED_BRANCH"     >> feeds.conf.default
+          echo "src-git packages https://github.com/openwrt/packages.git;$FEED_BRANCH" >> feeds.conf.default
+          echo "src-git luci https://github.com/openwrt/luci.git;$FEED_BRANCH"         >> feeds.conf.default
+          echo "📋 feeds.conf.default:"; cat feeds.conf.default
 
           ./scripts/feeds update -a || { echo "❌ Feeds更新失败"; exit 1; }
           ./scripts/feeds install -a || { echo "❌ Feeds安装失败"; exit 1; }
@@ -130,41 +197,47 @@ jobs:
 
           # 配置
           echo "CONFIG_PACKAGE_$PKG_NAME=y" >> .config
+          if [ "$PKG_EXT" = "apk" ]; then
+            # 显式声明使用 apk（25.12 SDK 默认已为 y，这里写死避免 SDK 变体差异）
+            echo "CONFIG_USE_APK=y" >> .config
+          fi
           make defconfig || { echo "❌ 配置生成失败"; exit 1; }
 
           # 编译
           make package/$PKG_NAME/clean $VERBOSE_FLAG || echo "⚠️ 无旧产物"
-          make package/$PKG_NAME/compile $VERBOSE_FLAG -j$(nproc) || { echo "❌ 编译失败"; exit 1; } # 🌟 使用并行编译
+          make package/$PKG_NAME/compile $VERBOSE_FLAG -j$(nproc) || { echo "❌ 编译失败"; exit 1; }
 
-          # 查找并复制 IPK
-          ARCH_DIR=$(find "bin/packages/" -maxdepth 1 -type d ! -name "*.ipk" ! -name "packages" | head -n1)
-          IPK_PATH=$(find "$ARCH_DIR/" -name "*$PKG_NAME*.ipk" | head -n1)
+          # 查找产物：ipk 是 <name>_<ver>_<arch>.ipk，apk 是 <name>-<ver>.apk
+          # 统一用通配符查找，不拼死文件名
+          PKG_FILE=$(find bin/packages -type f -name "*${PKG_NAME}*.${PKG_EXT}" | sort | head -n1)
 
-          if [ -z "$IPK_PATH" ]; then
-            echo "❌ 未找到 $PKG_NAME 的 IPK 文件！"; ls -l "$ARCH_DIR"; exit 1;
+          if [ -z "$PKG_FILE" ]; then
+            echo "❌ 未找到 $PKG_NAME 的 .${PKG_EXT} 文件！实际产物如下："
+            find bin/packages -type f -name "*${PKG_NAME}*" | head -20
+            exit 1
           fi
 
-          cp -f "$IPK_PATH" "$OUTPUT_DIR/"
-          echo "✅ 编译完成！IPK路径：$OUTPUT_DIR/$(basename $IPK_PATH)"
+          cp -f "$PKG_FILE" "$OUTPUT_DIR/"
+          echo "✅ 编译完成！产物路径：$OUTPUT_DIR/$(basename "$PKG_FILE")"
 
-      - name: 5️⃣ 上传 IPK 产物
+      - name: 6️⃣ 上传 ${{ matrix.variant }} 产物
         uses: actions/upload-artifact@v4
         with:
-          # 上传 Artifact 名称使用包名，以便 Release Job 区分下载
-          name: ${{ matrix.pkg }}-ipk
-          # 路径指向独立输出目录下的 IPK 文件
-          path: /home/runner/luci-build-ipk/${{ matrix.pkg }}/*.ipk
+          # Artifact 名称带上格式后缀，方便 Release Job 区分
+          name: ${{ matrix.pkg }}-${{ matrix.variant }}
+          # apk 文件名带连字符，ipk 带下划线，故用通配符匹配
+          path: /home/runner/luci-build/${{ matrix.pkg }}-${{ matrix.variant }}/*.${{ matrix.variant }}
           retention-days: 30
 
   release:
     needs: build
     runs-on: ubuntu-22.04
     steps:
-      - name: 1️⃣ 下载所有 IPK 产物
+      - name: 1️⃣ 下载所有产物
         uses: actions/download-artifact@v4
         with:
-          # 下载到 /home/runner/all-ipks，结构为 all-ipks/<pkg_name>-ipk/*.ipk
-          path: /home/runner/all-ipks
+          # 下载到 /home/runner/all-pkgs，结构为 all-pkgs/<pkg_name>-<ipk|apk>/*
+          path: /home/runner/all-pkgs
 
       - name: 2️⃣ 设置当前时间
         run: |
@@ -173,9 +246,13 @@ jobs:
 
       - name: 3️⃣ 生成包列表
         run: |
-          # 查找所有子目录（即 Artifacts 的名称）并格式化为列表
-          PKG_NAMES=$(find /home/runner/all-ipks -mindepth 1 -maxdepth 1 -type d | sed 's/.*\///' | sed 's/-ipk$//' | tr '\n' ',' | sed 's/,$//')
+          # 目录名形如 luci-app-xxx-ipk / luci-app-xxx-apk，剥掉格式后缀去重
+          PKG_NAMES=$(find /home/runner/all-pkgs -mindepth 1 -maxdepth 1 -type d \
+            | sed 's/.*\///' | sed -E 's/-(ipk|apk)$//' | sort -u | tr '\n' ',' | sed 's/,$//')
           echo "PKG_NAMES=$PKG_NAMES" >> $GITHUB_ENV
+          echo "📦 包列表：$PKG_NAMES"
+          echo "🔍 产物文件清单："
+          find /home/runner/all-pkgs -type f \( -name '*.ipk' -o -name '*.apk' \) | sort
 
       - name: 4️⃣ 发布到 GitHub Release
         uses: softprops/action-gh-release@v1
@@ -183,10 +260,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: "all-build-${{ env.VERSION_TAG }}"
-          name: "自动编译 LuCI 应用包"
-          # files 必须使用通配符来匹配所有子目录中的所有 IPK 文件
-          files: /home/runner/all-ipks/**/*.ipk
+          name: "自动编译 LuCI 应用包（ipk + apk）"
+          # 两个 glob 分行写，ipk 给 24.10，apk 给 25.12
+          files: |
+            /home/runner/all-pkgs/**/*.ipk
+            /home/runner/all-pkgs/**/*.apk
           body: |
             🎉 所有包编译完成！
             包列表：${{ env.PKG_NAMES }}
             时间：${{ env.BUILD_TIME }}
+
+            安装方式：
+            - `.ipk` → OpenWrt 24.10 及更早（opkg）：`opkg install /tmp/xxx.ipk`
+            - `.apk` → OpenWrt 25.12 及更新（apk）：`apk add --allow-untrusted /tmp/xxx.apk`
